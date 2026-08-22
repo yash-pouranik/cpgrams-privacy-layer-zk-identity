@@ -1,0 +1,24 @@
+{
+  "name": "cpgrams-privacy-layer-zk-identity",
+  "private": true,
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "workspaces": ["apps/*"],
+  "scripts": {
+    "dev:sso": "npm run dev -w apps/sso-server",
+    "dev:cpgrams": "npm run dev -w apps/cpgrams-backend",
+    "dev:frontend": "npm run dev -w apps/frontend"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yash-pouranik/cpgrams-privacy-layer-zk-identity.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/yash-pouranik/cpgrams-privacy-layer-zk-identity/issues"
+  },
+  "homepage": "https://github.com/yash-pouranik/cpgrams-privacy-layer-zk-identity#readme"
+}

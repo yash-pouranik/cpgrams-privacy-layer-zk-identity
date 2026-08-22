@@ -1,0 +1,84 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Real citizen identity — mock eKYC verified
+model User {
+  id             String   @id @default(uuid())
+  aadhaarHashMock String  @unique
+  mobile         String
+  email          String?
+  createdAt      DateTime @default(now())
+
+  serviceIdentities ServiceIdentityMap[]
+
+  @@map("users")
+}
+
+// Relying parties (OIDC clients) — e.g. cpgrams
+model Service {
+  id           String   @id @default(uuid())
+  serviceId    String   @unique // e.g. "cpgrams"
+  name         String
+  redirectUris String[]
+  clientSecret String
+  status       String   @default("active")
+  createdAt    DateTime @default(now())
+
+  identityMaps ServiceIdentityMap[]
+
+  @@map("services")
+}
+
+// CORE TABLE — pairwise pseudonymous identity per (user, service)
+model ServiceIdentityMap {
+  id          String   @id @default(uuid())
+  userId      String
+  serviceId   String
+  pairwiseId  String   @unique
+  createdAt   DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id])
+  service Service @relation(fields: [serviceId], references: [serviceId])
+
+  @@unique([userId, serviceId]) // one pairwise id per user-per-service
+  @@index([pairwiseId])
+  @@map("service_identity_map")
+}
+
+// Disclosure workflow — court-authorized identity reveal
+model DisclosureRequest {
+  id                  String   @id @default(uuid())
+  caseId              String
+  pairwiseId          String
+  requestingOfficerId String
+  justification       String
+  status              String   @default("pending") // pending | approved | rejected
+  courtOrderRef       String?
+  approvedBy          String?
+  createdAt           DateTime @default(now())
+  decidedAt           DateTime?
+
+  @@index([pairwiseId])
+  @@index([status])
+  @@map("disclosure_requests")
+}
+
+// Immutable audit trail — append-only at application layer
+model AuditLog {
+  id               String   @id @default(uuid())
+  eventType        String   // login | disclosure_request | disclosure_approved | identity_revealed
+  actorId          String?
+  targetPairwiseId String?
+  metadata         Json?
+  timestamp        DateTime @default(now())
+
+  @@index([eventType])
+  @@index([targetPairwiseId])
+  @@map("audit_logs")
+}

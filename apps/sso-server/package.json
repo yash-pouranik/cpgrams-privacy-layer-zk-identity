@@ -1,0 +1,22 @@
+{
+  "name": "sso-server",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "@prisma/client": "^7.9.1",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "oidc-provider": "^9.11.4",
+    "prisma": "^7.9.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14"
+  }
+}
