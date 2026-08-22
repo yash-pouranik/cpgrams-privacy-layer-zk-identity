@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "mysql"
   url      = env("DATABASE_URL")
 }
 
@@ -25,7 +25,7 @@ model Service {
   id           String   @id @default(uuid())
   serviceId    String   @unique // e.g. "cpgrams"
   name         String
-  redirectUris String[]
+  redirectUris String
   clientSecret String
   status       String   @default("active")
   createdAt    DateTime @default(now())

@@ -10,11 +10,14 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
-    "@prisma/client": "^7.9.1",
+    "@prisma/client": "^5.22.0",
     "dotenv": "^17.4.2",
+    "ejs": "^6.0.1",
     "express": "^5.2.1",
+    "mysql2": "^3.23.4",
     "oidc-provider": "^9.11.4",
-    "prisma": "^7.9.1"
+    "prisma": "^5.22.0",
+    "resend": "^6.22.0"
   },
   "devDependencies": {
     "nodemon": "^3.1.14"
