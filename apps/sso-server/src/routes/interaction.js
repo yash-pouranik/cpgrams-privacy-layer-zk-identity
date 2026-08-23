@@ -39,6 +39,9 @@ module.exports = function interactionRoutes(provider) {
       }
       return next(new Error('Unknown interaction prompt: ' + details.prompt.name));
     } catch (err) {
+      if (err.name === 'SessionNotFound' || (err.message && err.message.includes('SessionNotFound'))) {
+        return res.redirect('http://localhost:5000/auth/login');
+      }
       next(err);
     }
   });
@@ -167,6 +170,10 @@ module.exports = function interactionRoutes(provider) {
         mergeWithLastSubmission: false,
       });
     } catch (err) {
+      if (err.name === 'SessionNotFound' || (err.message && err.message.includes('SessionNotFound'))) {
+        console.warn('OIDC interaction session expired or server restarted. Redirecting user to restart login flow...');
+        return res.redirect('http://localhost:5000/auth/login');
+      }
       next(err);
     }
   });
