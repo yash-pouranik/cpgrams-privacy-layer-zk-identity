@@ -49,10 +49,17 @@ const configuration = {
     required: () => true, // enforce PKCE even for confidential clients — good practice
   },
 
+  renderError: async (ctx, out, error) => {
+    console.warn('OIDC provider error:', out.error, out.error_description);
+    return ctx.redirect('http://localhost:5000/auth/login');
+  },
+
   ttl: {
     AccessToken: 3600,
     AuthorizationCode: 600,
     IdToken: 3600,
+    Interaction: 3600,
+    Session: 86400,
   },
 };
 
