@@ -168,7 +168,7 @@ Derived from pairwiseId + random nonce — same citizen filing two complaints ge
 **Environment variables (`apps/cpgrams-backend/.env`):**
 ```
 MONGO_URI="mongodb://localhost:27017/cpgrams_db"
-SSO_ISSUER_URL="http://localhost:4000"
+SSO_ISSUER_URL="http://localhost:4000/oidc"   <!-- NOTE: must include the /oidc mount path for Issuer.discover -->
 CPGRAMS_CLIENT_SECRET="<same secret as SSO side>"
 PORT=5000
 ```
@@ -258,6 +258,15 @@ cd apps/frontend
 npm run dev
 ```
 
+**Run all three from the repo root (requires `concurrently`):**
+```bash
+npm run dev:sso        # → http://localhost:4000
+npm run dev:cpgrams    # → http://localhost:5000
+npm run dev:frontend   # → http://localhost:3000
+# or all at once:
+npm run dev:all
+```
+
 ## UI Libraries
 - SSO Server (EJS views): DaisyUI via CDN (./agents/skills/daisyui)
 - Frontend (Next.js): shadcn/ui + Tailwind CSS
@@ -274,3 +283,6 @@ npm run dev
 | Day 2 (Cont.) | CPGRAMS Backend: Added X-Authority-Token auth middleware to disclosure authority routes. |
 | Day 3 | Frontend App built: Next.js 14 App Router setup with Shadcn/UI and Tailwind v4. Pages for Citizen Landing, Auth Callback, Dashboard, Grievance filing, and Case Details. Officer dashboard, Officer case detail (with Identity Protected banner). Disclosure Authority console. |
 | Day 3 (Cont.) | Connected end-to-end OIDC loop: Landing page CTA -> CPGRAMS Backend /auth/login -> CivID SSO /oidc/auth -> Interaction views (Aadhaar + OTP) -> Backend /auth/callback -> Frontend /auth/callback?token=... -> Dashboard. Added API_DOCUMENTATION.md. |
+| Day 3 (Cont.) | Fixed root package.json JSON syntax error (missing comma after the "dev" script entry, line 14) that was breaking the frontend build (Turbopack reads package.json as a directory description file while evaluating globals.css). Added root-level run scripts (`dev`, `dev:sso`, `dev:cpgrams`, `dev:frontend`, `dev:all`) and documented them in "How to Run". |
+| Day 3 (Cont.) | Fixed components/ui/button.tsx: `asChild` was being spread through to the DOM element (React "does not recognize the asChild prop" error). Changed Button to the canonical shadcn pattern — destructure `asChild` and render `Slot` from `@radix-ui/react-slot` when `asChild` is true, otherwise the base-ui ButtonPrimitive. This fixes `<Button asChild>` usages in the landing page and citizen dashboard. |
+| Day 3 (Cont.) | Created apps/sso-server/.env and apps/cpgrams-backend/.env with dev secrets, aligning CPGRAMS_CLIENT_SECRET and COURT_ORDER_SECRET across both. The SSO .env omits a resend key (OTP prints to console in dev). Fixed AGENTS.md backend env docs: SSO_ISSUER_URL must be "http://localhost:4000/oidc" for the backend (Issuer.discover needs the /oidc mount), not "http://localhost:4000". Button now works given the SSO (4000) + backend (5000) + MySQL/MongoDB are running. |

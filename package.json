@@ -4,12 +4,15 @@
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
-  "workspaces": ["apps/*"],
+  "workspaces": [
+    "apps/*"
+  ],
   "scripts": {
     "dev:sso": "npm run dev -w apps/sso-server",
     "dev:cpgrams": "npm run dev -w apps/cpgrams-backend",
     "dev:frontend": "npm run dev -w apps/frontend",
-    "dev": "npm run dev:sso && npm run dev:cpgrams && npm run dev:frontend"
+    "dev": "npm run dev:sso && npm run dev:cpgrams && npm run dev:frontend",
+    "dev:all": "concurrently \"npm --prefix apps/sso-server run dev\" \"npm --prefix apps/cpgrams-backend run dev\" \"npm --prefix apps/frontend run dev\""
   },
   "repository": {
     "type": "git",
@@ -21,5 +24,8 @@
   "bugs": {
     "url": "https://github.com/yash-pouranik/cpgrams-privacy-layer-zk-identity/issues"
   },
-  "homepage": "https://github.com/yash-pouranik/cpgrams-privacy-layer-zk-identity#readme"
+  "homepage": "https://github.com/yash-pouranik/cpgrams-privacy-layer-zk-identity#readme",
+  "devDependencies": {
+    "concurrently": "^10.0.5"
+  }
 }
