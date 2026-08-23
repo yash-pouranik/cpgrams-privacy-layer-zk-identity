@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CivID — Login</title>
+  <link href="https://cdn.jsdelivr.net/npm/daisyui@5" rel="stylesheet" type="text/css" />
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+</head>
+<body>
+  <div class="hero min-h-screen bg-base-200">
+    <div class="hero-content flex-col w-full max-w-md">
+
+      <div class="text-center mb-4">
+        <h1 class="text-4xl font-bold tracking-tight">Civ<span class="text-primary">ID</span></h1>
+        <p class="text-base-content/60 mt-2">Verify your identity. Protect it too.</p>
+      </div>
+
+      <div class="card bg-base-100 w-full shadow-xl">
+        <div class="card-body">
+          <h2 class="card-title justify-center">Sign in with Aadhaar</h2>
+
+          <% if (error) { %>
+            <div role="alert" class="alert alert-error alert-soft mt-2">
+              <span><%= error %></span>
+            </div>
+          <% } %>
+
+          <form method="POST" action="/interaction/<%= uid %>/login" class="mt-4">
+            <label class="floating-label w-full">
+              <input
+                type="text"
+                name="aadhaar"
+                placeholder="Aadhaar Number"
+                class="input input-primary w-full"
+                maxlength="12"
+                pattern="\d{12}"
+                inputmode="numeric"
+                required
+                autofocus
+              />
+              <span>Aadhaar Number (12 digits)</span>
+            </label>
+
+            <div class="card-actions mt-6">
+              <button type="submit" class="btn btn-primary btn-block">Continue</button>
+            </div>
+          </form>
+
+          <p class="text-center text-base-content/50 text-xs mt-4">
+            Your identity is verified but never disclosed to the officer.
+          </p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</body>
+</html>

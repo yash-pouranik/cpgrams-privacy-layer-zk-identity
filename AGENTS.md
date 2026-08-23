@@ -97,18 +97,18 @@ Deterministic — same citizen + same service always gets the same pairwiseId.
 | File | Status |
 |---|---|
 | `prisma/schema.prisma` | ✅ Done |
-| `src/oidc/provider.js` | ⏳ Pending |
-| `src/oidc/interactions.js` | ⏳ Pending |
-| `src/services/mockEkyc.js` | ⏳ Pending |
-| `src/services/otp.js` | ⏳ Pending |
-| `src/services/pairwiseId.js` | ⏳ Pending |
-| `src/models/prismaClient.js` | ⏳ Pending |
-| `src/routes/disclosure.js` | ⏳ Pending |
-| `src/middleware/verifyCourtOrder.js` | ⏳ Pending |
-| `src/views/login.ejs` | ⏳ Pending |
-| `src/views/otp.ejs` | ⏳ Pending |
-| `src/views/error.ejs` | ⏳ Pending |
-| `src/app.js` | ⏳ Pending |
+| `src/oidc/provider.js` | ✅ Done |
+| `src/routes/interaction.js` | ✅ Done |
+| `src/services/mockEkyc.js` | ✅ Done |
+| `src/services/otp.js` | ✅ Done |
+| `src/services/pairwiseId.js` | ✅ Done |
+| `src/models/prismaClient.js` | ✅ Done |
+| `src/routes/disclosure.js` | ✅ Done |
+| `src/middleware/verifyCourtOrder.js` | ✅ Done |
+| `src/views/login.ejs` | ✅ Done |
+| `src/views/otp.ejs` | ✅ Done |
+| `src/views/error.ejs` | ✅ Done |
+| `src/app.js` | ✅ Done |
 
 **Environment variables (`apps/sso-server/.env`):**
 ```
@@ -117,6 +117,8 @@ SSO_PAIRWISE_SECRET="<random secret>"
 SSO_ISSUER_URL="http://localhost:4000"
 RESEND_API_KEY="<your resend key>"
 CPGRAMS_CLIENT_SECRET="<shared secret with cpgrams-backend>"
+CPGRAMS_CALLBACK_URL="http://localhost:5000/auth/callback"
+COURT_ORDER_SECRET="<secret for court order HMAC verification>"
 PORT=4000
 ```
 
@@ -154,9 +156,9 @@ Derived from pairwiseId + random nonce — same citizen filing two complaints ge
 
 | File | Status |
 |---|---|
-| `src/models/` | ⏳ Pending |
-| `src/routes/` | ⏳ Pending |
-| `src/app.js` | ⏳ Pending |
+| `src/models/` | ✅ Done |
+| `src/routes/` | ✅ Done |
+| `src/app.js` | ✅ Done |
 
 **Environment variables (`apps/cpgrams-backend/.env`):**
 ```
@@ -222,11 +224,13 @@ PORT=5000
 
 ## Demo Credentials (for judge testing)
 
-> Update this section when mock eKYC seed data is finalized.
+> OTP is printed to the server console in dev mode. Resend delivery requires a valid RESEND_API_KEY.
 
-| Aadhaar (mock) | Email | OTP |
+| Aadhaar (mock) | Email | Name |
 |---|---|---|
-| TBD | TBD | TBD |
+| 123456789012 | rahul.sharma@example.com | Rahul Sharma |
+| 987654321098 | priya.patel@example.com | Priya Patel |
+| 111122223333 | amit.verma@example.com | Amit Verma |
 
 ---
 
@@ -257,3 +261,5 @@ npm run dev
 | Date | What changed |
 |---|---|
 | Day 1 | Monorepo initialized, SSO server dependencies installed, Prisma schema created, MySQL migration done |
+| Day 2 | SSO server fully built: prismaClient singleton, mockEkyc seed (3 citizens), OTP service (Resend + in-memory), pairwiseId HMAC service, interaction routes (login/OTP flow with factory pattern), disclosure route + verifyCourtOrder middleware, 3 EJS views (DaisyUI CDN). Server boots and health check passes. |
+| Day 2 (Cont.) | CPGRAMS Backend fully built: MongoDB models (Case, Officer, Message, AuditLog, DisclosureRequest), OIDC token verification middleware, Auth callback route, Grievance filing/retrieval routes, Officer mock-auth routes, Chat routes, Disclosure Authority routes. Database seeded with 5 mock officers. Server boots and health check passes. |
