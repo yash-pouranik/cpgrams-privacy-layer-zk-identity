@@ -8,6 +8,16 @@ const AuditLog = require('../models/AuditLog');
 
 const router = Router();
 
+// Disclosure Authority auth middleware
+function requireAuthority(req, res, next) {
+  const token = req.headers['x-authority-token'];
+  const expectedToken = process.env.DISCLOSURE_AUTHORITY_TOKEN || 'authority-secret-change-me';
+  if (!token || token !== expectedToken) {
+    return res.status(401).json({ error: 'Unauthorized. X-Authority-Token required.' });
+  }
+  next();
+}
+
 /**
  * POST /disclosure/request
  * Officer requests identity disclosure for a case.
@@ -63,7 +73,7 @@ router.post('/request', async (req, res) => {
  * GET /disclosure/pending
  * Disclosure Authority: list all pending disclosure requests.
  */
-router.get('/pending', async (req, res) => {
+router.get('/pending', requireAuthority, async (req, res) => {
   try {
     const pending = await DisclosureRequest.find({ status: 'pending' })
       .select('-pairwiseId')
@@ -80,7 +90,7 @@ router.get('/pending', async (req, res) => {
  * Disclosure Authority approves and calls CivID SSO reverse-lookup.
  * Body: { courtOrderRef }
  */
-router.post('/:id/approve', async (req, res) => {
+router.post('/:id/approve', requireAuthority, async (req, res) => {
   try {
     const { courtOrderRef } = req.body;
     if (!courtOrderRef) {
@@ -157,7 +167,7 @@ router.post('/:id/approve', async (req, res) => {
  * POST /disclosure/:id/reject
  * Disclosure Authority rejects the request.
  */
-router.post('/:id/reject', async (req, res) => {
+router.post('/:id/reject', requireAuthority, async (req, res) => {
   try {
     const disclosure = await DisclosureRequest.findById(req.params.id);
     if (!disclosure) {

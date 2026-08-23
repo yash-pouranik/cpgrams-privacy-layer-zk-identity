@@ -145,12 +145,17 @@ PORT=4000
 | `messages` | Masked chat — tied to Case ID only |
 | `audit_logs` | CPGRAMS-side audit trail |
 | `officers` | Mock officer accounts with department + level |
+| `disclosure_requests` | Court-authorized identity reveal requests — pending/approved/rejected |
 
 **Case ID generation:**
 ```
 caseId = "CPG-" + HASH(pairwiseId + nonce).slice(0,6).toUpperCase()
 ```
 Derived from pairwiseId + random nonce — same citizen filing two complaints gets different Case IDs (officer cannot link them).
+
+**Disclosure API:**
+- Routes: `GET /disclosure/pending`, `POST /disclosure/:id/approve`, `POST /disclosure/:id/reject`
+- Protected by Disclosure Authority middleware requiring `X-Authority-Token` header.
 
 **Files status:**
 
@@ -263,3 +268,4 @@ npm run dev
 | Day 1 | Monorepo initialized, SSO server dependencies installed, Prisma schema created, MySQL migration done |
 | Day 2 | SSO server fully built: prismaClient singleton, mockEkyc seed (3 citizens), OTP service (Resend + in-memory), pairwiseId HMAC service, interaction routes (login/OTP flow with factory pattern), disclosure route + verifyCourtOrder middleware, 3 EJS views (DaisyUI CDN). Server boots and health check passes. |
 | Day 2 (Cont.) | CPGRAMS Backend fully built: MongoDB models (Case, Officer, Message, AuditLog, DisclosureRequest), OIDC token verification middleware, Auth callback route, Grievance filing/retrieval routes, Officer mock-auth routes, Chat routes, Disclosure Authority routes. Database seeded with 5 mock officers. Server boots and health check passes. |
+| Day 2 (Cont.) | CPGRAMS Backend: Added X-Authority-Token auth middleware to disclosure authority routes. |
