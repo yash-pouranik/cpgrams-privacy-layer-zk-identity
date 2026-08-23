@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default function LandingPage() {
-  const loginUrl = `${process.env.NEXT_PUBLIC_SSO_URL}/auth/login`;
+  const loginUrl = `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/auth/login`;
 
   return (
     <div className="flex flex-col min-h-screen">

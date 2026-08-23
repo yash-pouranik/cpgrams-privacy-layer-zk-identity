@@ -9,41 +9,21 @@ export default function AuthCallback() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const code = searchParams.get("code");
-    const state = searchParams.get("state");
+    const token = searchParams.get("token");
 
-    if (!code) {
-      setError("No authorization code found in the URL.");
+    if (token) {
+      sessionStorage.setItem("token", token);
+      router.push("/dashboard");
       return;
     }
 
-    const exchangeToken = async () => {
-      try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
-        const query = new URLSearchParams();
-        query.append("code", code);
-        if (state) query.append("state", state);
-
-        const res = await fetch(`${apiUrl}/auth/callback?${query.toString()}`);
-        if (!res.ok) {
-          throw new Error("Authentication failed");
-        }
-
-        const data = await res.json();
-        
-        if (data.token) {
-          sessionStorage.setItem("token", data.token);
-          router.push("/dashboard");
-        } else {
-          throw new Error("No token returned");
-        }
-      } catch (err: any) {
-        console.error("Auth callback error:", err);
-        setError(err.message || "An error occurred during authentication.");
-      }
-    };
-
-    exchangeToken();
+    // Fallback error if no token is present
+    const err = searchParams.get("error");
+    if (err) {
+      setError(err);
+    } else {
+      setError("No token received from CivID SSO authentication.");
+    }
   }, [router, searchParams]);
 
   if (error) {

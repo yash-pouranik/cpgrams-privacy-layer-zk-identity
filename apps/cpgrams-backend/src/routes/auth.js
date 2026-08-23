@@ -73,11 +73,10 @@ router.get('/callback', async (req, res, next) => {
     // Clean up code verifier
     delete req.session.codeVerifier;
 
-    // Redirect to frontend or a success page
-    res.json({
-      message: 'Authentication successful',
-      pairwiseId: claims.sub,
-    });
+    // Redirect to frontend callback route with token
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const token = tokenSet.id_token || tokenSet.access_token;
+    res.redirect(`${frontendUrl}/auth/callback?token=${token}`);
   } catch (err) {
     console.error('Auth callback error:', err.message);
     next(err);
