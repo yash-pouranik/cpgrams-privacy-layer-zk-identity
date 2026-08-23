@@ -40,7 +40,9 @@ module.exports = function interactionRoutes(provider) {
       return next(new Error('Unknown interaction prompt: ' + details.prompt.name));
     } catch (err) {
       if (err.name === 'SessionNotFound' || (err.message && err.message.includes('SessionNotFound'))) {
-        return res.redirect('http://localhost:5000/auth/login');
+        return res.status(400).render('error', {
+          message: 'Your authentication session expired or server restarted. Please try logging in again.',
+        });
       }
       next(err);
     }
@@ -159,10 +161,15 @@ module.exports = function interactionRoutes(provider) {
         },
       });
 
-      // ---- Finish OIDC interaction ----
+      // ---- Finish OIDC interaction (both login + consent to prevent roundtrip loops) ----
       const result = {
         login: {
           accountId: pairwiseId,
+        },
+        consent: {
+          rejectedScopes: [],
+          rejectedClaims: [],
+          replace: false,
         },
       };
 
@@ -171,8 +178,9 @@ module.exports = function interactionRoutes(provider) {
       });
     } catch (err) {
       if (err.name === 'SessionNotFound' || (err.message && err.message.includes('SessionNotFound'))) {
-        console.warn('OIDC interaction session expired or server restarted. Redirecting user to restart login flow...');
-        return res.redirect('http://localhost:5000/auth/login');
+        return res.status(400).render('error', {
+          message: 'Your authentication session expired or server restarted. Please try logging in again.',
+        });
       }
       next(err);
     }
