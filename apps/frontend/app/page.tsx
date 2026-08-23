@@ -1,69 +1,71 @@
-import Image from "next/image";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
-export default function Home() {
+export default function LandingPage() {
+  const loginUrl = `${process.env.NEXT_PUBLIC_SSO_URL}/auth/login`;
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
+    <div className="flex flex-col min-h-screen">
+      <main className="flex-1">
+        <section className="py-24 px-6 max-w-5xl mx-auto flex flex-col items-center text-center space-y-8">
+          <h1 className="text-5xl md:text-6xl font-bold tracking-tight text-[#111827]">
+            File grievances without fear
           </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+          <p className="text-xl md:text-2xl text-[#6B7280] max-w-3xl leading-relaxed">
+            CivID verifies who you are. CPGRAMS never reveals it to the officer handling your case.
           </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
+          <div className="pt-8">
+            <Button asChild size="lg" className="bg-[#5E6AD2] hover:bg-[#828FFF] text-white text-lg px-8 py-6 rounded-md shadow-sm">
+              <a href={loginUrl}>Continue with CivID &rarr;</a>
+            </Button>
+          </div>
+        </section>
+
+        <section className="py-20 px-6 max-w-6xl mx-auto bg-transparent">
+          <div className="grid md:grid-cols-3 gap-8">
+            <Card className="bg-[#F9FAFB] border-[#E5E7EB] shadow-sm">
+              <CardHeader>
+                <div className="w-10 h-10 rounded-full bg-[#5E6AD2]/10 flex items-center justify-center mb-4">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#5E6AD2" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>
+                </div>
+                <CardTitle className="text-[#111827] text-xl">Verified Identity</CardTitle>
+              </CardHeader>
+              <CardContent className="text-[#6B7280]">
+                You are authenticated through government-approved channels to ensure legitimate filings without fraud.
+              </CardContent>
+            </Card>
+
+            <Card className="bg-[#F9FAFB] border-[#E5E7EB] shadow-sm">
+              <CardHeader>
+                <div className="w-10 h-10 rounded-full bg-[#5E6AD2]/10 flex items-center justify-center mb-4">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#5E6AD2" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                </div>
+                <CardTitle className="text-[#111827] text-xl">Protected Identity</CardTitle>
+              </CardHeader>
+              <CardContent className="text-[#6B7280]">
+                The officer handling your grievance never sees your personal details. They only see an anonymous Case ID.
+              </CardContent>
+            </Card>
+
+            <Card className="bg-[#F9FAFB] border-[#E5E7EB] shadow-sm">
+              <CardHeader>
+                <div className="w-10 h-10 rounded-full bg-[#5E6AD2]/10 flex items-center justify-center mb-4">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#5E6AD2" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+                </div>
+                <CardTitle className="text-[#111827] text-xl">Controlled Disclosure</CardTitle>
+              </CardHeader>
+              <CardContent className="text-[#6B7280]">
+                Your identity can only be revealed through a court-authorized, fully auditable workflow.
+              </CardContent>
+            </Card>
+          </div>
+        </section>
       </main>
+
+      <footer className="py-8 text-center border-t border-[#E5E7EB] text-[#6B7280] text-sm mt-auto">
+        Powered by CivID &middot; Build What Moves India
+      </footer>
     </div>
   );
 }

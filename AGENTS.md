@@ -181,17 +181,20 @@ PORT=5000
 **Purpose:** Citizen-facing UI (grievance filing, case status, masked chat) + Officer dashboard (seeded/pre-loaded for demo) + Disclosure console.
 
 **Tech Stack:** Next.js (App Router) + Tailwind CSS
-**Status:** ⏳ Scaffolded via create-next-app, no pages built yet
+**Status:** ✅ Complete.
 
-**Key pages planned:**
+**Key pages built:**
 
 | Route | Purpose |
 |---|---|
 | `/` | Landing — "Continue with civId SSO" |
-| `/file-grievance` | Grievance form (autosave) |
-| `/case/[id]` | Case status + masked chat |
-| `/officer/[caseId]` | Officer view — identity PROTECTED |
-| `/disclosure` | Disclosure authority console |
+| `/auth/callback` | OIDC redirect handler & token storage |
+| `/dashboard` | Citizen Dashboard (My Grievances) |
+| `/grievance/new` | Grievance form (autosave) |
+| `/case/[caseId]` | Citizen Case status + masked chat |
+| `/officer` | Officer Dashboard |
+| `/officer/case/[caseId]` | Officer Case Detail + Masked Chat + Disclosure Request modal |
+| `/disclosure` | Disclosure Authority Console (Approve/Reject requests) |
 
 ---
 
@@ -269,3 +272,4 @@ npm run dev
 | Day 2 | SSO server fully built: prismaClient singleton, mockEkyc seed (3 citizens), OTP service (Resend + in-memory), pairwiseId HMAC service, interaction routes (login/OTP flow with factory pattern), disclosure route + verifyCourtOrder middleware, 3 EJS views (DaisyUI CDN). Server boots and health check passes. |
 | Day 2 (Cont.) | CPGRAMS Backend fully built: MongoDB models (Case, Officer, Message, AuditLog, DisclosureRequest), OIDC token verification middleware, Auth callback route, Grievance filing/retrieval routes, Officer mock-auth routes, Chat routes, Disclosure Authority routes. Database seeded with 5 mock officers. Server boots and health check passes. |
 | Day 2 (Cont.) | CPGRAMS Backend: Added X-Authority-Token auth middleware to disclosure authority routes. |
+| Day 3 | Frontend App built: Next.js 14 App Router setup with Shadcn/UI and Tailwind v4. Pages for Citizen Landing, Auth Callback, Dashboard, Grievance filing, and Case Details. Officer dashboard, Officer case detail (with Identity Protected banner). Disclosure Authority console. |

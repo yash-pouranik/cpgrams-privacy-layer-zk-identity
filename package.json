@@ -8,7 +8,8 @@
   "scripts": {
     "dev:sso": "npm run dev -w apps/sso-server",
     "dev:cpgrams": "npm run dev -w apps/cpgrams-backend",
-    "dev:frontend": "npm run dev -w apps/frontend"
+    "dev:frontend": "npm run dev -w apps/frontend",
+    "dev": "npm run dev:sso && npm run dev:cpgrams && npm run dev:frontend"
   },
   "repository": {
     "type": "git",
