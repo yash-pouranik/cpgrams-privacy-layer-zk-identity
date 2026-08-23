@@ -23,6 +23,18 @@ async function getOrCreatePairwiseId(userId, serviceId) {
   // Generate and store new pairwiseId
   const pairwiseId = generatePairwiseId(userId, serviceId);
 
+  // Ensure service record exists in services table for foreign key constraint
+  await prisma.service.upsert({
+    where: { serviceId },
+    update: {},
+    create: {
+      serviceId,
+      name: 'CPGRAMS Grievance Portal',
+      redirectUris: 'http://localhost:5000/auth/callback',
+      clientSecret: process.env.CPGRAMS_CLIENT_SECRET || 'dev-secret-change-me',
+    },
+  });
+
   await prisma.serviceIdentityMap.create({
     data: {
       userId,
