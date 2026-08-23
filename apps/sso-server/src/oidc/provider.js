@@ -49,6 +49,10 @@ const configuration = {
     required: () => true, // enforce PKCE even for confidential clients — good practice
   },
 
+  cookies: {
+    keys: [process.env.SSO_PAIRWISE_SECRET || 'dev-cookie-key-secret-12345'],
+  },
+
   renderError: async (ctx, out, error) => {
     console.warn('OIDC provider error:', out.error, out.error_description);
     return ctx.redirect('http://localhost:5000/auth/login');
