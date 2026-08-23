@@ -56,4 +56,4 @@ function verifyOtp(email, inputOtp) {
   return true;
 }
 
-module.exports = { sendOtp, verifyOtp };
+module.exports = { sendOtp, verifyOtp, otpStore };

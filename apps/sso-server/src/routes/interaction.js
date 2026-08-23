@@ -18,25 +18,42 @@ module.exports = function interactionRoutes(provider) {
   router.get('/:uid', async (req, res, next) => {
     try {
       const details = await provider.interactionDetails(req, res);
+
       if (details.prompt.name === 'login') {
         return res.render('login', {
           uid: req.params.uid,
           error: null,
         });
       }
-      // If consent prompt, auto-approve (we only expose 'sub')
+
+      // If consent prompt, auto-grant requested scopes with a Grant instance
       if (details.prompt.name === 'consent') {
-        const consent = {
-          rejectedScopes: [],
-          rejectedClaims: [],
-          replace: false,
-        };
-        const result = { consent };
+        let grant;
+        if (details.grantId) {
+          grant = await provider.Grant.find(details.grantId);
+        } else {
+          grant = new provider.Grant({
+            accountId: details.session.accountId,
+            clientId: details.params.client_id,
+          });
+        }
+
+        if (details.prompt.details.missingOIDCScope) {
+          grant.addOIDCScope(details.prompt.details.missingOIDCScope.join(' '));
+        }
+        if (details.prompt.details.missingOIDCClaims) {
+          grant.addOIDCClaims(details.prompt.details.missingOIDCClaims);
+        }
+
+        const grantId = await grant.save();
+        const result = { consent: { grantId } };
+
         await provider.interactionFinished(req, res, result, {
           mergeWithLastSubmission: true,
         });
         return;
       }
+
       return next(new Error('Unknown interaction prompt: ' + details.prompt.name));
     } catch (err) {
       if (err.name === 'SessionNotFound' || (err.message && err.message.includes('SessionNotFound'))) {
@@ -71,10 +88,6 @@ module.exports = function interactionRoutes(provider) {
       // Send OTP to the citizen's email
       await sendOtp(citizen.email);
 
-      // Store aadhaar in session-like temp (query param for simplicity in hackathon)
-      // We hash the aadhaar for the redirect to avoid exposing it in URL
-      const aadhaarHash = crypto.createHash('sha256').update(aadhaar).digest('hex');
-
       // Mask email for display: te***@example.com
       const [localPart, domain] = citizen.email.split('@');
       const maskedEmail = localPart.slice(0, 2) + '***@' + domain;
@@ -82,7 +95,7 @@ module.exports = function interactionRoutes(provider) {
       return res.render('otp', {
         uid: req.params.uid,
         maskedEmail,
-        aadhaar, // passed as hidden field for OTP verification
+        aadhaar,
         error: null,
       });
     } catch (err) {
@@ -93,8 +106,6 @@ module.exports = function interactionRoutes(provider) {
   // ---- GET /interaction/:uid/otp — render OTP screen (for resend flow) ----
   router.get('/:uid/otp', async (req, res, next) => {
     try {
-      // This route is mainly for the "resend OTP" link.
-      // Without aadhaar context we redirect back to login.
       return res.render('login', {
         uid: req.params.uid,
         error: 'Please enter your Aadhaar number again to resend OTP.',
@@ -148,7 +159,7 @@ module.exports = function interactionRoutes(provider) {
       }
 
       // ---- Get or create pairwiseId for (user, cpgrams) ----
-      const serviceId = 'cpgrams'; // static for now
+      const serviceId = 'cpgrams';
       const pairwiseId = await getOrCreatePairwiseId(user.id, serviceId);
 
       // ---- Log login event ----
@@ -161,15 +172,28 @@ module.exports = function interactionRoutes(provider) {
         },
       });
 
-      // ---- Finish OIDC interaction (both login + consent to prevent roundtrip loops) ----
+      // ---- Create & Save Grant for OIDC scopes ----
+      const details = await provider.interactionDetails(req, res);
+      let grant;
+      if (details.grantId) {
+        grant = await provider.Grant.find(details.grantId);
+      } else {
+        grant = new provider.Grant({
+          accountId: pairwiseId,
+          clientId: details.params.client_id,
+        });
+      }
+
+      grant.addOIDCScope('openid');
+      const grantId = await grant.save();
+
+      // ---- Finish OIDC interaction with both login and grant consent ----
       const result = {
         login: {
           accountId: pairwiseId,
         },
         consent: {
-          rejectedScopes: [],
-          rejectedClaims: [],
-          replace: false,
+          grantId,
         },
       };
 

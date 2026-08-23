@@ -1,4 +1,4 @@
-const { Provider } = require('oidc-provider');
+const { Provider, interactionPolicy: { base: policy } } = require('oidc-provider');
 
 // ---- Static client registration ----
 // For the hackathon build, relying parties (like CPGRAMS) are registered here directly.
@@ -51,11 +51,45 @@ const configuration = {
 
   cookies: {
     keys: [process.env.SSO_PAIRWISE_SECRET || 'dev-cookie-key-secret-12345'],
+    short: {
+      path: '/',
+      sameSite: 'lax',
+      secure: false,
+    },
+    long: {
+      path: '/',
+      sameSite: 'lax',
+      secure: false,
+    },
+  },
+
+  interactions: {
+    url(ctx, interaction) {
+      return `/interaction/${interaction.uid}`;
+    },
   },
 
   renderError: async (ctx, out, error) => {
     console.warn('OIDC provider error:', out.error, out.error_description);
-    return ctx.redirect('http://localhost:5000/auth/login');
+    ctx.status = out.status || 400;
+    ctx.type = 'html';
+    ctx.body = `<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CivID — Session Expired</title>
+  <link href="https://cdn.jsdelivr.net/npm/daisyui@5" rel="stylesheet" type="text/css" />
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+</head>
+<body class="bg-base-200 min-h-screen flex items-center justify-center p-4">
+  <div class="card bg-base-100 max-w-md w-full shadow-xl text-center p-6">
+    <h2 class="text-2xl font-bold text-error">Authentication Session Expired</h2>
+    <p class="text-base-content/70 my-4">Your login session has expired or was interrupted. Please start the login process again.</p>
+    <a href="http://localhost:5000/auth/login" class="btn btn-primary w-full">Start Login Again</a>
+  </div>
+</body>
+</html>`;
   },
 
   ttl: {
