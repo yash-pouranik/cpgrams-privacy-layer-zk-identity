@@ -54,8 +54,7 @@ async function verifyToken(req, res, next) {
     }
 
     // Verify issuer matches our SSO
-    const ssoUrl = process.env.SSO_ISSUER_URL || 'http://localhost:4000';
-    const expectedIssuer = ssoUrl + '/oidc';
+    const expectedIssuer = process.env.SSO_ISSUER_URL || 'http://localhost:4000/oidc';
     if (iss && iss !== expectedIssuer) {
       return res.status(401).json({ error: 'Token issuer mismatch.' });
     }

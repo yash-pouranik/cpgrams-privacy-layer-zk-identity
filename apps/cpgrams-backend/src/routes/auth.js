@@ -9,8 +9,8 @@ let _client = null;
 
 async function getClient() {
   if (_client) return _client;
-  const ssoUrl = process.env.SSO_ISSUER_URL || 'http://localhost:4000';
-  const issuer = await Issuer.discover(ssoUrl + '/oidc');
+  const ssoUrl = process.env.SSO_ISSUER_URL || 'http://localhost:4000/oidc';
+  const issuer = await Issuer.discover(ssoUrl);
   _client = new issuer.Client({
     client_id: 'cpgrams',
     client_secret: process.env.CPGRAMS_CLIENT_SECRET || 'dev-secret-change-me',
