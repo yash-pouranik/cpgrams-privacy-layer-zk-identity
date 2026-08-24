@@ -1,11 +1,9 @@
 'use strict';
 
 const { Router } = require('express');
-const fs = require('fs');
 const Case = require('../models/Case');
 const AuditLog = require('../models/AuditLog');
 const verifyToken = require('../middleware/verifyToken');
-const { upload } = require('../middleware/upload');
 const { generateCaseId } = require('../services/caseId');
 const { autoAssign, getDepartment } = require('../services/autoAssign');
 
@@ -17,14 +15,12 @@ router.use(verifyToken);
 /**
  * POST /grievance
  * File a new grievance.
- * Content-Type: multipart/form-data
- * Fields: category (text), description (text), urls (text, optional JSON array),
- *         files (file, up to 5) — images or PDFs
+ * Body: { category, description, evidenceUrls? }
  */
-router.post('/', upload.array('files', 5), async (req, res) => {
+router.post('/', async (req, res) => {
   try {
     const { pairwiseId } = req.citizen;
-    const { category, description, urls } = req.body;
+    const { category, description, evidenceUrls } = req.body;
 
     if (!category || !description) {
       return res.status(400).json({ error: 'category and description are required.' });
@@ -36,47 +32,24 @@ router.post('/', upload.array('files', 5), async (req, res) => {
     // Try to auto-assign an officer
     const officer = await autoAssign(category);
 
-    // Build evidence URL list: uploaded files first, then any external URLs.
-    const baseUrl = `http://localhost:${process.env.PORT || 5000}`;
-    const uploadedUrls = (req.files || []).map(
-      (f) => `${baseUrl}/uploads/${f.filename}`
-    );
-
-    // `urls` arrives as a JSON string from multipart form data.
-    let externalUrls = [];
-    if (urls) {
-      try {
-        const parsed = JSON.parse(urls);
-        if (Array.isArray(parsed)) {
-          externalUrls = parsed.map((u) => String(u).trim()).filter(Boolean);
-        } else if (typeof parsed === 'string') {
-          externalUrls = parsed.split(',').map((u) => u.trim()).filter(Boolean);
-        }
-      } catch {
-        // fall back to comma-separated string
-        externalUrls = String(urls).split(',').map((u) => u.trim()).filter(Boolean);
-      }
-    }
-    const evidenceUrls = [...uploadedUrls, ...externalUrls];
-
     const newCase = await Case.create({
       caseId,
       pairwiseId,
       category,
       description,
-      evidenceUrls,
+      evidenceUrls: evidenceUrls || [],
       status: officer ? 'assigned' : 'pending',
       assignedOfficerId: officer ? officer.officerId : null,
       department,
     });
 
-        // Audit log
+    // Audit log
     await AuditLog.create({
       eventType: 'grievance_filed',
       actorId: pairwiseId,
       targetCaseId: caseId,
       targetPairwiseId: pairwiseId,
-      metadata: { category, department, assignedOfficerId: officer ? officer.officerId : null, evidenceCount: uploadedUrls.length },
+      metadata: { category, department, assignedOfficerId: officer ? officer.officerId : null },
     });
 
     // Response — NEVER include pairwiseId
@@ -90,14 +63,6 @@ router.post('/', upload.array('files', 5), async (req, res) => {
     });
   } catch (err) {
     console.error('File grievance error:', err);
-    // Clean up any uploaded files on failure so orphans don't linger.
-    if (req.files && req.files.length) {
-      req.files.forEach((f) => {
-        try {
-          fs.unlinkSync(f.path);
-        } catch { /* ignore cleanup errors */ }
-      });
-    }
     return res.status(500).json({ error: 'Internal server error.' });
   }
 });

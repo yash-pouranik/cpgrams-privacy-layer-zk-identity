@@ -1,5 +1,0 @@
-# Keep the uploads directory but ignore its contents.
-# Uploaded evidence files (images/PDFs) are ephemeral demo artifacts.
-*
-!.gitignore
-!.gitkeep

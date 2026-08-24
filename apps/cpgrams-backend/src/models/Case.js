@@ -20,11 +20,9 @@ const caseSchema = new mongoose.Schema({
 });
 
 // Auto-update updatedAt on save
-// Mongoose 9 / Kareem 3 runs document pre-hooks via promise (pre.fn.apply),
-// and does NOT pass a `next` callback to arity-1 hooks, so a `function(next) { ... next() }`
-// signature throws "TypeError: next is not a function". Use an async hook instead.
-caseSchema.pre('save', async function () {
+caseSchema.pre('save', function (next) {
   this.updatedAt = new Date();
+  next();
 });
 
 module.exports = mongoose.model('Case', caseSchema);

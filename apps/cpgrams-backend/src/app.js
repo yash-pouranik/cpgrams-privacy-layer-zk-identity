@@ -4,10 +4,8 @@ require('dotenv').config();
 
 const express = require('express');
 const cors = require('cors');
-const multer = require('multer');
 const session = require('express-session');
 const connectDB = require('./config/db');
-const { UPLOADS_DIR } = require('./middleware/upload');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -22,13 +20,6 @@ app.use(cors({
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
-
-// ---- Serve uploaded evidence files ----
-// Evidence files (images/PDFs) are stored on disk and served statically.
-// URL: http://localhost:5000/uploads/<filename>
-app.use('/uploads', express.static(UPLOADS_DIR, {
-  maxAge: '1d',
-}));
 
 // ---- Session (for OIDC auth callback) ----
 app.use(session({
@@ -55,18 +46,6 @@ app.get('/health', (req, res) => {
 
 // ---- Error handler ----
 app.use((err, req, res, next) => {
-  // Multer file-upload errors (size / count / bad type) should return 4xx.
-  if (err instanceof multer.MulterError) {
-    let message = 'File upload error.';
-    if (err.code === 'LIMIT_FILE_SIZE') message = 'File too large. Maximum 5MB per file.';
-    else if (err.code === 'LIMIT_FILE_COUNT') message = 'Too many files. Maximum 5 files.';
-    else if (err.code === 'LIMIT_UNEXPECTED_FILE') message = 'Only image or PDF files are allowed.';
-    return res.status(400).json({ error: message });
-  }
-  // Any manually thrown Error (e.g. our file filter) — treat as bad request.
-  if (err && err.message) {
-    return res.status(400).json({ error: err.message });
-  }
   console.error('Unhandled error:', err);
   res.status(500).json({ error: 'Internal server error.' });
 });
