@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { StatusBadge } from "@/components/StatusBadge";
 import { ChatThread } from "@/components/ChatThread";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -16,8 +16,12 @@ interface CaseDetail {
   createdAt: string;
 }
 
-export default function CitizenCaseDetail({ params }: { params: { caseId: string } }) {
+export default function CitizenCaseDetail() {
   const router = useRouter();
+  // Next.js 16 passes `params` to page components as a Promise, so reading
+  // `params.caseId` directly yields `undefined` at runtime. useParams() is the
+  // version-safe way to read dynamic route segments in a client page.
+  const { caseId } = useParams<{ caseId: string }>();
   const [grievance, setGrievance] = useState<CaseDetail | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -31,7 +35,7 @@ export default function CitizenCaseDetail({ params }: { params: { caseId: string
 
       try {
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
-        const res = await fetch(`${apiUrl}/grievance/${params.caseId}`, {
+        const res = await fetch(`${apiUrl}/grievance/${caseId}`, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -51,7 +55,7 @@ export default function CitizenCaseDetail({ params }: { params: { caseId: string
     };
 
     fetchCase();
-  }, [params.caseId, router]);
+  }, [caseId, router]);
 
   if (loading) {
     return (
