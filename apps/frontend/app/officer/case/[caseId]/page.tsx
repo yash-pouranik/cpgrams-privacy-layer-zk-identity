@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import { ProtectedBanner } from "@/components/ProtectedBanner";
 import { ChatThread } from "@/components/ChatThread";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -35,8 +35,11 @@ interface Reminder {
   createdAt: string;
 }
 
-export default function OfficerCaseDetail({ params }: { params: { caseId: string } }) {
+export default function OfficerCaseDetail() {
   const router = useRouter();
+  const routeParams = useParams();
+  const caseId = (routeParams?.caseId as string) || "";
+
   const [grievance, setGrievance] = useState<CaseDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [statusInput, setStatusInput] = useState("");
@@ -52,9 +55,11 @@ export default function OfficerCaseDetail({ params }: { params: { caseId: string
   const [officerToken, setOfficerToken] = useState<string>("");
 
   const fetchCase = useCallback(async (token: string) => {
+    if (!caseId) return;
+
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
-      const res = await fetch(`${apiUrl}/officer/case/${params.caseId}`, {
+      const res = await fetch(`${apiUrl}/officer/case/${caseId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -71,12 +76,12 @@ export default function OfficerCaseDetail({ params }: { params: { caseId: string
         setStatusInput(data.status);
       }
       
-      const docRes = await fetch(`${apiUrl}/officer/case/${params.caseId}/documents`, {
+      const docRes = await fetch(`${apiUrl}/officer/case/${caseId}/documents`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (docRes.ok) setDocuments(await docRes.json());
       
-      const remRes = await fetch(`${apiUrl}/officer/case/${params.caseId}/reminders`, {
+      const remRes = await fetch(`${apiUrl}/officer/case/${caseId}/reminders`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (remRes.ok) setReminders(await remRes.json());
@@ -86,7 +91,7 @@ export default function OfficerCaseDetail({ params }: { params: { caseId: string
     } finally {
       setLoading(false);
     }
-  }, [params.caseId, router]);
+  }, [caseId, router]);
 
   useEffect(() => {
     const token = sessionStorage.getItem("officerToken");
@@ -99,11 +104,11 @@ export default function OfficerCaseDetail({ params }: { params: { caseId: string
   }, [fetchCase, router]);
 
   const handleStatusUpdate = async () => {
-    if (!statusInput || statusInput === grievance?.status) return;
+    if (!statusInput || statusInput === grievance?.status || !caseId) return;
     setUpdating(true);
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
-      const res = await fetch(`${apiUrl}/officer/case/${params.caseId}/status`, {
+      const res = await fetch(`${apiUrl}/officer/case/${caseId}/status`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -123,7 +128,7 @@ export default function OfficerCaseDetail({ params }: { params: { caseId: string
   };
 
   const handleDisclosureRequest = async () => {
-    if (!justification.trim()) return;
+    if (!justification.trim() || !caseId) return;
     setRequesting(true);
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
@@ -133,7 +138,7 @@ export default function OfficerCaseDetail({ params }: { params: { caseId: string
           "Content-Type": "application/json",
           Authorization: `Bearer ${officerToken}`,
         },
-        body: JSON.stringify({ caseId: params.caseId, justification }),
+        body: JSON.stringify({ caseId, justification }),
       });
       if (res.ok) {
         setModalOpen(false);
@@ -151,14 +156,14 @@ export default function OfficerCaseDetail({ params }: { params: { caseId: string
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!e.target.files || e.target.files.length === 0) return;
+    if (!e.target.files || e.target.files.length === 0 || !caseId) return;
     setUploadingDoc(true);
     try {
       const formData = new FormData();
       Array.from(e.target.files).forEach(f => formData.append("files", f));
       
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
-      const res = await fetch(`${apiUrl}/officer/case/${params.caseId}/documents`, {
+      const res = await fetch(`${apiUrl}/officer/case/${caseId}/documents`, {
         method: "POST",
         headers: { Authorization: `Bearer ${officerToken}` },
         body: formData,
@@ -172,10 +177,10 @@ export default function OfficerCaseDetail({ params }: { params: { caseId: string
   };
 
   const handleRequestClarification = async () => {
-    if (!clarificationContent.trim()) return;
+    if (!clarificationContent.trim() || !caseId) return;
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
-      const res = await fetch(`${apiUrl}/officer/case/${params.caseId}/clarification`, {
+      const res = await fetch(`${apiUrl}/officer/case/${caseId}/clarification`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -268,7 +273,7 @@ export default function OfficerCaseDetail({ params }: { params: { caseId: string
                 {documents.map(doc => (
                   <div key={doc._id} className="flex justify-between items-center bg-gray-50 p-2.5 rounded border border-gray-200">
                     <span className="text-sm font-mono text-gray-700">{doc.originalName || "Document"}</span>
-                    <a href={`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/officer/case/${params.caseId}/documents/${doc._id}/download`} className="text-blue-600 hover:underline text-sm font-medium" target="_blank" rel="noreferrer">
+                    <a href={`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/officer/case/${caseId}/documents/${doc._id}/download`} className="text-blue-600 hover:underline text-sm font-medium" target="_blank" rel="noreferrer">
                       Download
                     </a>
                   </div>

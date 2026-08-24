@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState, useCallback } from "react";
+import { useRouter, useParams } from "next/navigation";
 import { StatusBadge } from "@/components/StatusBadge";
 import { ChatThread } from "@/components/ChatThread";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -22,7 +22,9 @@ interface CaseDetail {
 
 interface Document {
   _id: string;
-  filename: string;
+  originalName: string;
+  mimeType: string;
+  sizeBytes: number;
   createdAt: string;
 }
 
@@ -33,8 +35,11 @@ interface Reminder {
   createdAt: string;
 }
 
-export default function CitizenCaseDetail({ params }: { params: { caseId: string } }) {
+export default function CitizenCaseDetail() {
   const router = useRouter();
+  const routeParams = useParams();
+  const caseId = (routeParams?.caseId as string) || "";
+  
   const [grievance, setGrievance] = useState<CaseDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [token, setToken] = useState("");
@@ -49,50 +54,59 @@ export default function CitizenCaseDetail({ params }: { params: { caseId: string
   const [feedbackComment, setFeedbackComment] = useState("");
   const [submittingFeedback, setSubmittingFeedback] = useState(false);
 
-  const fetchCaseData = async () => {
-    const t = sessionStorage.getItem("token");
-    if (!t) {
-      router.push("/");
-      return;
-    }
-    setToken(t);
+  const fetchCaseData = useCallback(async (t: string) => {
+    if (!caseId) return;
 
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
       
-      const res = await fetch(`${apiUrl}/grievance/${params.caseId}`, {
+      const res = await fetch(`${apiUrl}/grievance/${caseId}`, {
         headers: { Authorization: `Bearer ${t}` },
       });
-      if (res.ok) setGrievance(await res.json());
-      else { router.push("/dashboard"); return; }
+      if (res.ok) {
+        setGrievance(await res.json());
+      } else {
+        router.push("/dashboard");
+        return;
+      }
       
-      const docRes = await fetch(`${apiUrl}/grievance/${params.caseId}/documents`, {
+      const docRes = await fetch(`${apiUrl}/grievance/${caseId}/documents`, {
         headers: { Authorization: `Bearer ${t}` },
       });
-      if (docRes.ok) setDocuments(await docRes.json());
+      if (docRes.ok) {
+        setDocuments(await docRes.json());
+      }
       
-      const remRes = await fetch(`${apiUrl}/grievance/${params.caseId}/reminders`, {
+      const remRes = await fetch(`${apiUrl}/grievance/${caseId}/reminders`, {
         headers: { Authorization: `Bearer ${t}` },
       });
-      if (remRes.ok) setReminders(await remRes.json());
+      if (remRes.ok) {
+        setReminders(await remRes.json());
+      }
       
     } catch (err) {
       console.error("Failed to fetch case details:", err);
     } finally {
       setLoading(false);
     }
-  };
+  }, [caseId, router]);
 
   useEffect(() => {
-    fetchCaseData();
-  }, [params.caseId, router]);
+    const t = sessionStorage.getItem("token");
+    if (!t) {
+      router.push("/");
+      return;
+    }
+    setToken(t);
+    fetchCaseData(t);
+  }, [fetchCaseData, router]);
 
   const handleSendReminder = async () => {
-    if (!reminderContent.trim()) return;
+    if (!reminderContent.trim() || !caseId) return;
     setSendingReminder(true);
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
-      const res = await fetch(`${apiUrl}/grievance/${params.caseId}/reminder`, {
+      const res = await fetch(`${apiUrl}/grievance/${caseId}/reminder`, {
         method: "POST",
         headers: { 
           "Content-Type": "application/json",
@@ -102,7 +116,7 @@ export default function CitizenCaseDetail({ params }: { params: { caseId: string
       });
       if (res.ok) {
         setReminderContent("");
-        fetchCaseData();
+        fetchCaseData(token);
       }
     } finally {
       setSendingReminder(false);
@@ -110,28 +124,29 @@ export default function CitizenCaseDetail({ params }: { params: { caseId: string
   };
 
   const handleReplyClarification = async (content: string) => {
-    if (!content.trim()) return;
+    if (!content.trim() || !caseId) return;
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
-      const res = await fetch(`${apiUrl}/grievance/${params.caseId}/reminder`, {
+      const res = await fetch(`${apiUrl}/grievance/${caseId}/reminder`, {
         method: "POST",
         headers: { 
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}` 
         },
-        body: JSON.stringify({ type: 'clarification_reply', content }),
+        body: JSON.stringify({ type: 'clarification_response', content }),
       });
-      if (res.ok) fetchCaseData();
+      if (res.ok) fetchCaseData(token);
     } catch(err) {
       console.error(err);
     }
   };
 
   const handleSubmitFeedback = async () => {
+    if (!caseId) return;
     setSubmittingFeedback(true);
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
-      const res = await fetch(`${apiUrl}/grievance/${params.caseId}/feedback`, {
+      const res = await fetch(`${apiUrl}/grievance/${caseId}/feedback`, {
         method: "POST",
         headers: { 
           "Content-Type": "application/json",
@@ -139,7 +154,7 @@ export default function CitizenCaseDetail({ params }: { params: { caseId: string
         },
         body: JSON.stringify({ rating, comment: feedbackComment }),
       });
-      if (res.ok) fetchCaseData();
+      if (res.ok) fetchCaseData(token);
     } finally {
       setSubmittingFeedback(false);
     }
@@ -147,7 +162,7 @@ export default function CitizenCaseDetail({ params }: { params: { caseId: string
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center flex-1">
+      <div className="flex justify-center items-center flex-1 min-h-[60vh]">
         <div className="w-8 h-8 border-4 border-[#E5E7EB] border-t-[#5E6AD2] rounded-full animate-spin"></div>
       </div>
     );
@@ -190,9 +205,9 @@ export default function CitizenCaseDetail({ params }: { params: { caseId: string
               <h3 className="text-sm font-semibold text-[#111827] mb-2 uppercase tracking-wider">Documents</h3>
               <div className="flex flex-col gap-2">
                 {documents.map(doc => (
-                  <div key={doc._id} className="flex justify-between items-center bg-gray-50 p-2 rounded border">
-                    <span className="text-sm font-mono text-gray-700">{doc.filename}</span>
-                    <a href={`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/grievance/${params.caseId}/documents/${doc._id}/download`} className="text-blue-600 hover:underline text-sm" target="_blank" rel="noreferrer">
+                  <div key={doc._id} className="flex justify-between items-center bg-gray-50 p-2.5 rounded border border-gray-200">
+                    <span className="text-sm font-mono text-gray-700">{doc.originalName || "Document"}</span>
+                    <a href={`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/grievance/${caseId}/documents/${doc._id}/download`} className="text-blue-600 hover:underline text-sm font-medium" target="_blank" rel="noreferrer">
                       Download
                     </a>
                   </div>
@@ -208,9 +223,9 @@ export default function CitizenCaseDetail({ params }: { params: { caseId: string
           <h2 className="text-xl font-bold text-[#111827] mb-4">Reminders & Clarifications</h2>
           <div className="space-y-4">
             {reminders.map(r => (
-              <div key={r._id} className="p-4 border rounded bg-white shadow-sm flex flex-col gap-2">
+              <div key={r._id} className="p-4 border rounded-xl bg-white shadow-sm flex flex-col gap-2">
                 <div className="flex justify-between text-xs text-gray-500">
-                  <span className="font-bold uppercase">{r.type.replace('_', ' ')}</span>
+                  <span className="font-bold uppercase text-[#5E6AD2]">{r.type.replace(/_/g, ' ')}</span>
                   <span>{new Date(r.createdAt).toLocaleString()}</span>
                 </div>
                 <p className="text-gray-800 text-sm">{r.content}</p>
@@ -237,39 +252,48 @@ export default function CitizenCaseDetail({ params }: { params: { caseId: string
               value={reminderContent} 
               onChange={e => setReminderContent(e.target.value)} 
               placeholder="Reminder message..." 
-              className="resize-none"
+              className="resize-none bg-[#F9FAFB]"
             />
-            <Button onClick={handleSendReminder} disabled={sendingReminder}>Send</Button>
+            <Button onClick={handleSendReminder} disabled={sendingReminder} className="bg-[#111827] text-white">Send</Button>
           </div>
         </div>
       )}
 
       {grievance.status === 'resolved' && (
-        <div className="mb-8 p-6 bg-green-50 border border-green-200 rounded-lg">
-          <h2 className="text-xl font-bold text-green-900 mb-2">Case Resolved</h2>
+        <div className="mb-8 p-6 bg-green-50 border border-green-200 rounded-xl">
+          <h2 className="text-xl font-bold text-green-900 mb-2">Case Redressal Feedback</h2>
           
           {grievance.feedbackSubmitted && grievance.feedback ? (
             <div className="mt-4">
-              <h3 className="font-bold">Your Feedback</h3>
-              <p>Rating: {grievance.feedback.rating} / 5</p>
-              <p className="text-gray-700 italic">"{grievance.feedback.comment}"</p>
+              <h3 className="font-semibold text-green-950">Your Submitted Feedback</h3>
+              <p className="text-sm text-green-900 mt-1">Rating: <strong>{grievance.feedback.rating} / 5 Stars</strong></p>
+              {grievance.feedback.comment && (
+                <p className="text-green-800 text-sm italic mt-1">"{grievance.feedback.comment}"</p>
+              )}
             </div>
           ) : (
             <div className="mt-4 space-y-4">
-              <h3 className="font-bold">Submit Feedback</h3>
-              <div>
-                <label className="block text-sm font-medium mb-1">Rating (1-5)</label>
-                <div className="rating">
+              <h3 className="font-semibold text-green-950">Rate the Grievance Redressal</h3>
+              <div className="flex items-center gap-2">
+                <label className="text-sm font-medium text-green-900">Rating:</label>
+                <div className="flex gap-2">
                   {[1,2,3,4,5].map(v => (
-                    <input key={v} type="radio" name="rating-2" className="mask mask-star-2 bg-orange-400" checked={rating === v} onChange={() => setRating(v)} />
+                    <button
+                      key={v}
+                      type="button"
+                      onClick={() => setRating(v)}
+                      className={`px-3 py-1 text-sm font-bold rounded-lg border transition ${rating === v ? "bg-green-700 text-white border-green-700" : "bg-white text-green-800 border-green-300"}`}
+                    >
+                      {v} ★
+                    </button>
                   ))}
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">Comment</label>
-                <Textarea value={feedbackComment} onChange={e => setFeedbackComment(e.target.value)} placeholder="How was your experience?" />
+                <label className="block text-sm font-medium text-green-900 mb-1">Feedback Comment</label>
+                <Textarea value={feedbackComment} onChange={e => setFeedbackComment(e.target.value)} placeholder="How was your resolution experience?" className="bg-white" />
               </div>
-              <Button onClick={handleSubmitFeedback} disabled={submittingFeedback} className="bg-green-600 text-white hover:bg-green-700">
+              <Button onClick={handleSubmitFeedback} disabled={submittingFeedback} className="bg-green-700 text-white hover:bg-green-800 font-medium">
                 Submit Feedback
               </Button>
             </div>
