@@ -66,10 +66,28 @@ router.get('/status/:caseId/history', async (req, res) => {
 
     const logs = await AuditLog.find({
       targetCaseId: caseId,
-      eventType: { $in: ['status_updated', 'grievance_filed'] }
+      eventType: { $in: ['status_updated', 'grievance_filed', 'reminder_sent', 'clarification_requested', 'feedback_submitted'] }
     }).sort({ createdAt: 1 });
 
-    return res.json(logs);
+    const timeline = logs.map(log => {
+      let title = log.eventType.replace(/_/g, ' ');
+      if (log.eventType === 'grievance_filed') title = 'Grievance Registered';
+      else if (log.eventType === 'status_updated') title = `Status Updated: ${(log.metadata?.newStatus || log.metadata?.status || 'In Progress').toUpperCase().replace(/_/g, ' ')}`;
+      else if (log.eventType === 'reminder_sent') title = 'Citizen Reminder Logged';
+      else if (log.eventType === 'clarification_requested') title = 'Officer Clarification Requested';
+      else if (log.eventType === 'feedback_submitted') title = 'Citizen Redressal Feedback Submitted';
+
+      return {
+        _id: log._id,
+        eventType: log.eventType,
+        title,
+        status: log.metadata?.newStatus || log.metadata?.status || log.eventType || 'logged',
+        createdAt: log.createdAt,
+        notes: log.metadata?.notes || log.metadata?.justification || ''
+      };
+    });
+
+    return res.json(timeline);
   } catch (err) {
     console.error('Status history error:', err);
     return res.status(500).json({ error: 'Internal server error.' });
