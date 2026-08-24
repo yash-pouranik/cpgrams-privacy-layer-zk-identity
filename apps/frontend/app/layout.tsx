@@ -4,8 +4,9 @@ import { Navbar } from "@/components/Navbar";
 import "./globals.css";
 
 const outfit = Outfit({
-  variable: "--font-outfit",
   subsets: ["latin"],
+  weight: ["300", "400", "500", "600", "700", "800"],
+  variable: "--font-outfit",
   display: "swap",
 });
 
@@ -22,9 +23,14 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${outfit.variable} h-full antialiased`}
+      className={`${outfit.variable} ${outfit.className} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-[#FFFFFF] text-[#111827] font-sans">
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+      </head>
+      <body className={`${outfit.className} min-h-full flex flex-col bg-[#FFFFFF] text-[#111827]`}>
         <Navbar />
         <main className="flex-1 flex flex-col">
           {children}
