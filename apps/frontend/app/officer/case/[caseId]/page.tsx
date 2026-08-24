@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useParams } from "next/navigation";
 import { ProtectedBanner } from "@/components/ProtectedBanner";
 import { ChatThread } from "@/components/ChatThread";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -20,7 +21,11 @@ interface CaseDetail {
   createdAt: string;
 }
 
-export default function OfficerCaseDetail({ params }: { params: { caseId: string } }) {
+export default function OfficerCaseDetail() {
+  // Next.js 16 passes `params` to page components as a Promise, so reading
+  // `params.caseId` directly yields `undefined` at runtime. useParams() is the
+  // version-safe way to read dynamic route segments in a client page.
+  const { caseId } = useParams<{ caseId: string }>();
   const [grievance, setGrievance] = useState<CaseDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [statusInput, setStatusInput] = useState("");
@@ -32,7 +37,7 @@ export default function OfficerCaseDetail({ params }: { params: { caseId: string
   const fetchCase = async () => {
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
-      const res = await fetch(`${apiUrl}/officer/case/${params.caseId}`, {
+      const res = await fetch(`${apiUrl}/officer/case/${caseId}`, {
         headers: { "X-Officer-Id": "officer-001" },
       });
 
@@ -50,14 +55,14 @@ export default function OfficerCaseDetail({ params }: { params: { caseId: string
 
   useEffect(() => {
     fetchCase();
-  }, [params.caseId]);
+  }, [caseId]);
 
   const handleStatusUpdate = async () => {
     if (!statusInput || statusInput === grievance?.status) return;
     setUpdating(true);
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
-      const res = await fetch(`${apiUrl}/officer/case/${params.caseId}/status`, {
+      const res = await fetch(`${apiUrl}/officer/case/${caseId}/status`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -87,7 +92,7 @@ export default function OfficerCaseDetail({ params }: { params: { caseId: string
           "Content-Type": "application/json",
           "X-Officer-Id": "officer-001",
         },
-        body: JSON.stringify({ caseId: params.caseId, justification }),
+        body: JSON.stringify({ caseId, justification }),
       });
       if (res.ok) {
         setModalOpen(false);
