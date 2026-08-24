@@ -55,8 +55,9 @@ The grievance redressal backend system.
 *All routes require header `Authorization: Bearer <id_token>`*
 
 - **`POST /grievance`**
-  - **Body:** `{ "category": "Infrastructure", "description": "...", "evidenceUrls": [] }`
-  - **Description:** Files a new grievance under a pseudonymous Case ID. Auto-assigns department and available officer.
+  - **Content-Type:** `multipart/form-data`
+  - **Fields:** `category` (text), `description` (text), `urls` (text — JSON array or comma-separated list of external evidence links, optional), `files` (file — image or PDF, up to 5 files, 5MB each, field name `files`)
+  - **Description:** Files a new grievance under a pseudonymous Case ID. Uploaded images/PDFs are stored on disk under `/uploads` and referenced by absolute URL in `evidenceUrls`; external link-based evidence is merged into the same array. Auto-assigns department and available officer.
 - **`GET /grievance/my`**
   - **Description:** Retrieves all grievances filed by the authenticated citizen.
 - **`GET /grievance/:caseId`**
