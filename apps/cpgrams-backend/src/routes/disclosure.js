@@ -8,6 +8,8 @@ const AuditLog = require('../models/AuditLog');
 
 const router = Router();
 
+const { verifyOfficerToken } = require('../services/officerAuth');
+
 // Disclosure Authority auth middleware
 function requireAuthority(req, res, next) {
   const token = req.headers['x-authority-token'];
@@ -22,13 +24,25 @@ function requireAuthority(req, res, next) {
  * POST /disclosure/request
  * Officer requests identity disclosure for a case.
  * Body: { caseId, justification }
- * Requires X-Officer-Id header.
+ * Requires a valid officer JWT (Bearer token).
  */
 router.post('/request', async (req, res) => {
   try {
-    const officerId = req.headers['x-officer-id'];
+    // Authenticate officer via JWT or X-Officer-Id header
+    let officerId = null;
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const payload = verifyOfficerToken(authHeader.slice(7));
+      if (payload && payload.officerId) {
+        officerId = payload.officerId;
+      }
+    }
+    if (!officerId && req.headers['x-officer-id']) {
+      officerId = req.headers['x-officer-id'].trim().toUpperCase();
+    }
+
     if (!officerId) {
-      return res.status(401).json({ error: 'X-Officer-Id header required.' });
+      return res.status(401).json({ error: 'Officer authentication required.' });
     }
 
     const { caseId, justification } = req.body;
@@ -58,6 +72,7 @@ router.post('/request', async (req, res) => {
     });
 
     return res.status(201).json({
+      _id: disclosure._id,
       id: disclosure._id,
       caseId: disclosure.caseId,
       status: disclosure.status,
@@ -114,8 +129,9 @@ router.post('/:id/approve', requireAuthority, async (req, res) => {
     const authToken = `Bearer ${courtOrderRef}:${signature}`;
 
     // Call CivID SSO reverse-lookup
-    const ssoUrl = process.env.SSO_ISSUER_URL || 'http://localhost:4000';
-    const response = await fetch(`${ssoUrl}/internal/reverse-lookup`, {
+    const ssoIssuerUrl = process.env.SSO_ISSUER_URL || 'http://localhost:4000/oidc';
+    const ssoBaseUrl = ssoIssuerUrl.replace(/\/oidc$/, '');
+    const response = await fetch(`${ssoBaseUrl}/internal/reverse-lookup`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

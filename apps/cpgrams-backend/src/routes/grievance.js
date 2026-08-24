@@ -1,5 +1,7 @@
 'use strict';
 
+const crypto = require('crypto');
+const bcrypt = require('bcryptjs');
 const { Router } = require('express');
 const fs = require('fs');
 const Case = require('../models/Case');
@@ -17,32 +19,33 @@ router.use(verifyToken);
 /**
  * POST /grievance
  * File a new grievance.
- * Content-Type: multipart/form-data
- * Fields: category (text), description (text), urls (text, optional JSON array),
- *         files (file, up to 5) — images or PDFs
+ * Supports both JSON and multipart/form-data with file attachments.
  */
 router.post('/', upload.array('files', 5), async (req, res) => {
   try {
     const { pairwiseId } = req.citizen;
-    const { category, description, urls } = req.body;
+    const { category, description, urls, evidenceUrls: rawEvidenceUrls, sourcePortal = 'cpgrams-web' } = req.body;
 
     if (!category || !description) {
       return res.status(400).json({ error: 'category and description are required.' });
     }
 
-    const caseId = generateCaseId(pairwiseId);
+    const caseId = await generateCaseId(pairwiseId);
     const department = getDepartment(category);
 
     // Try to auto-assign an officer
     const officer = await autoAssign(category);
 
-    // Build evidence URL list: uploaded files first, then any external URLs.
+    // Generate Registration Password for public tracking
+    const password = crypto.randomBytes(4).toString('hex');
+    const hash = await bcrypt.hash(password, 10);
+
+    // Build evidence URL list: uploaded files first, then external URLs
     const baseUrl = `http://localhost:${process.env.PORT || 5000}`;
     const uploadedUrls = (req.files || []).map(
       (f) => `${baseUrl}/uploads/${f.filename}`
     );
 
-    // `urls` arrives as a JSON string from multipart form data.
     let externalUrls = [];
     if (urls) {
       try {
@@ -53,30 +56,44 @@ router.post('/', upload.array('files', 5), async (req, res) => {
           externalUrls = parsed.split(',').map((u) => u.trim()).filter(Boolean);
         }
       } catch {
-        // fall back to comma-separated string
         externalUrls = String(urls).split(',').map((u) => u.trim()).filter(Boolean);
       }
+    } else if (rawEvidenceUrls) {
+      if (Array.isArray(rawEvidenceUrls)) {
+        externalUrls = rawEvidenceUrls;
+      } else if (typeof rawEvidenceUrls === 'string') {
+        try {
+          const parsed = JSON.parse(rawEvidenceUrls);
+          externalUrls = Array.isArray(parsed) ? parsed : [rawEvidenceUrls];
+        } catch {
+          externalUrls = [rawEvidenceUrls];
+        }
+      }
     }
-    const evidenceUrls = [...uploadedUrls, ...externalUrls];
+
+    const finalEvidenceUrls = [...uploadedUrls, ...externalUrls];
 
     const newCase = await Case.create({
       caseId,
       pairwiseId,
       category,
       description,
-      evidenceUrls,
+      evidenceUrls: finalEvidenceUrls,
       status: officer ? 'assigned' : 'pending',
       assignedOfficerId: officer ? officer.officerId : null,
       department,
+      registrationPassword: hash,
+      sourcePortal,
+      documentCount: uploadedUrls.length
     });
 
-        // Audit log
+    // Audit log
     await AuditLog.create({
       eventType: 'grievance_filed',
       actorId: pairwiseId,
       targetCaseId: caseId,
       targetPairwiseId: pairwiseId,
-      metadata: { category, department, assignedOfficerId: officer ? officer.officerId : null, evidenceCount: uploadedUrls.length },
+      metadata: { category, department, assignedOfficerId: officer ? officer.officerId : null, sourcePortal, evidenceCount: finalEvidenceUrls.length },
     });
 
     // Response — NEVER include pairwiseId
@@ -87,15 +104,15 @@ router.post('/', upload.array('files', 5), async (req, res) => {
       assignedDepartment: newCase.department,
       assignedOfficerId: newCase.assignedOfficerId,
       createdAt: newCase.createdAt,
+      registrationPassword: password,
     });
   } catch (err) {
     console.error('File grievance error:', err);
-    // Clean up any uploaded files on failure so orphans don't linger.
     if (req.files && req.files.length) {
       req.files.forEach((f) => {
         try {
           fs.unlinkSync(f.path);
-        } catch { /* ignore cleanup errors */ }
+        } catch {}
       });
     }
     return res.status(500).json({ error: 'Internal server error.' });

@@ -30,11 +30,25 @@ export default function NewGrievancePage() {
   const router = useRouter();
   const { toast } = useToast();
   
+  const [categories, setCategories] = useState<{ name: string; parentCode: string | null }[]>([]);
   const [category, setCategory] = useState<string>("");
   const [description, setDescription] = useState("");
   const [evidenceUrl, setEvidenceUrl] = useState("");
   const [files, setFiles] = useState<StoredFile[]>([]);
   const [loading, setLoading] = useState(false);
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+
+  // Fetch categories
+  useEffect(() => {
+    fetch(`${apiUrl}/master/categories`)
+      .then(r => r.json())
+      .then(data => {
+        if (Array.isArray(data)) {
+          setCategories(data);
+        }
+      })
+      .catch(err => console.error("Failed to load categories:", err));
+  }, [apiUrl]);
 
   const handleFiles = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selected = Array.from(e.target.files || []);
@@ -113,8 +127,6 @@ export default function NewGrievancePage() {
     }
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
-
       // Build multipart form data.
       const formData = new FormData();
       formData.append("category", category);
@@ -132,20 +144,26 @@ export default function NewGrievancePage() {
       const res = await fetch(`${apiUrl}/grievance`, {
         method: "POST",
         headers: {
-          // NOTE: do NOT set Content-Type manually — the browser sets the
-          // multipart/form-data boundary automatically.
           Authorization: `Bearer ${token}`,
         },
         body: formData,
       });
 
-      if (!res.ok) throw new Error("Failed to file grievance");
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || "Failed to file grievance");
+      }
 
       // Clean up object URL previews since the page is about to navigate away.
       files.forEach((f) => URL.revokeObjectURL(f.previewUrl));
 
       const data = await res.json();
       localStorage.removeItem(AUTOSAVE_KEY);
+      
+      const pwd = data.registrationPassword || data.password;
+      if (pwd) {
+        alert(`Save this Registration Password: ${pwd}\n\nYou can use it to check status on the public portal without logging in.`);
+      }
       
       toast({
         title: "Grievance Filed Successfully",
@@ -178,14 +196,14 @@ export default function NewGrievancePage() {
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-2">
               <label className="text-sm font-medium text-[#111827]">Category</label>
-              <Select value={category} onValueChange={setCategory}>
+              <Select value={category} onValueChange={(val) => setCategory(val || "")}>
                 <SelectTrigger className="w-full bg-[#F9FAFB] border-[#E5E7EB]">
                   <SelectValue placeholder="Select a category" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Infrastructure">Infrastructure</SelectItem>
-                  <SelectItem value="Health">Health</SelectItem>
-                  <SelectItem value="Corruption">Corruption</SelectItem>
+                  {categories.filter(c => c.parentCode === null).map((cat, idx) => (
+                    <SelectItem key={idx} value={cat.name}>{cat.name}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -206,7 +224,7 @@ export default function NewGrievancePage() {
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium text-[#111827]">Evidence (Optional)</label>
+              <label className="text-sm font-medium text-[#111827]">Evidence & Attachments (Optional)</label>
 
               <div className="rounded-lg border border-dashed border-[#D1D5DB] bg-[#F9FAFB] p-4 text-center">
                 <input
@@ -218,7 +236,7 @@ export default function NewGrievancePage() {
                   className="hidden"
                 />
                 <div className="flex flex-col items-center gap-2">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21.44 11.91l.47 5.77z"/><path d="M21.44 11.91l.47 5.77z"/><path d="m2.59 17.12 2.9-.41"/><path d="M21.44 8.14l2.92 2.96"/><path d="M21.44 11.91l-2.92 2.96"/><path d="M12 3v13"/><path d="M12 16h-10"/><path d="M12 16H9.4"/><path d="m16 16-3.8 2.4-.08 1.61"/><path d="m16 16 3.8 2.4-.08-1.61"/><path d="M21.44 14.87l.44 3.9z"/></svg>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21.44 11.91l.47 5.77z"/><path d="m2.59 17.12 2.9-.41"/><path d="M21.44 8.14l2.92 2.96"/><path d="M21.44 11.91l-2.92 2.96"/><path d="M12 3v13"/><path d="M12 16h-10"/><path d="M12 16H9.4"/><path d="m16 16-3.8 2.4-.08 1.61"/><path d="M21.44 14.87l.44 3.9z"/></svg>
                   <p className="text-sm text-[#6B7280]">Drag & drop or <label htmlFor="evidence-files" className="text-[#5E6AD2] font-medium cursor-pointer underline-offset-2 hover:underline">browse</label> image or PDF</p>
                   <p className="text-xs text-[#6B7280]">JPG, PNG, GIF, WebP, PDF &middot; up to 5MB each &middot; multiple files allowed</p>
                 </div>
@@ -229,6 +247,7 @@ export default function NewGrievancePage() {
                   {files.map((f, idx) => (
                     <li key={`${f.file.name}-${idx}`} className="flex items-center gap-3 rounded-lg border border-[#E5E7EB] bg-white px-3 py-2">
                       {f.file.type.startsWith("image/") ? (
+                        // eslint-disable-next-line @next/next/no-img-element
                         <img src={f.previewUrl} alt={f.file.name} className="h-10 w-10 object-cover rounded-md border border-[#E5E7EB]" />
                       ) : (
                         <span className="inline-flex h-10 w-10 items-center justify-center rounded-md bg-red-50 text-red-600 text-[10px] font-semibold">PDF</span>

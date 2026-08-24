@@ -48,6 +48,21 @@ app.use('/officer', require('./routes/officer'));
 app.use('/chat', require('./routes/chat'));
 app.use('/disclosure', require('./routes/disclosure'));
 
+const documentRoutes = require('./routes/documents');
+const statusRoutes = require('./routes/status');
+const reminderRoutes = require('./routes/reminder');
+const feedbackRoutes = require('./routes/feedback');
+const masterRoutes = require('./routes/master');
+const pushRoutes = require('./routes/push');
+
+// Mount new routes
+app.use('/', documentRoutes);      // handles /grievance/:caseId/documents and /officer/case/:caseId/documents
+app.use('/', statusRoutes);        // handles /status/check and /status/:caseId/history
+app.use('/', reminderRoutes);      // handles /grievance/:caseId/reminder and /officer/case/:caseId/clarification
+app.use('/', feedbackRoutes);      // handles /grievance/:caseId/feedback
+app.use('/', masterRoutes);        // handles /master/departments, /master/categories, /master/officers
+app.use('/', pushRoutes);          // handles /api/push/grievance
+
 // ---- Health check ----
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', service: 'CPGRAMS Backend', port: PORT });
