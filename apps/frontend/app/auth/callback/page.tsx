@@ -1,28 +1,50 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
-export default function AuthCallback() {
+function AuthCallbackContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const token = searchParams.get("token");
+    const code = searchParams.get("code");
 
-    if (token) {
-      sessionStorage.setItem("token", token);
-      router.push("/dashboard");
+    if (code) {
+      const exchangeCode = async () => {
+        try {
+          const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+          const res = await fetch(`${apiUrl}/auth/exchange?code=${code}`, {
+            credentials: 'include'
+          });
+          
+          if (!res.ok) {
+            throw new Error('Code exchange failed');
+          }
+          
+          const data = await res.json();
+          if (data.token) {
+            sessionStorage.setItem("token", data.token);
+            router.push("/dashboard");
+          } else {
+            throw new Error('No token in response');
+          }
+        } catch (err: any) {
+          setError(err.message || "Failed to exchange code for token.");
+        }
+      };
+      
+      exchangeCode();
       return;
     }
 
-    // Fallback error if no token is present
+    // Fallback error if no code is present
     const err = searchParams.get("error");
     if (err) {
       setError(err);
     } else {
-      setError("No token received from CivID SSO authentication.");
+      setError("No code received from CivID SSO authentication.");
     }
   }, [router, searchParams]);
 
@@ -46,5 +68,18 @@ export default function AuthCallback() {
       <div className="w-12 h-12 border-4 border-[#E5E7EB] border-t-[#5E6AD2] rounded-full animate-spin"></div>
       <p className="mt-4 text-[#6B7280] font-medium">Verifying your identity securely...</p>
     </div>
+  );
+}
+
+export default function AuthCallback() {
+  return (
+    <Suspense fallback={
+      <div className="flex flex-col items-center justify-center min-h-[60vh]">
+        <div className="w-12 h-12 border-4 border-[#E5E7EB] border-t-[#5E6AD2] rounded-full animate-spin"></div>
+        <p className="mt-4 text-[#6B7280] font-medium">Verifying your identity securely...</p>
+      </div>
+    }>
+      <AuthCallbackContent />
+    </Suspense>
   );
 }

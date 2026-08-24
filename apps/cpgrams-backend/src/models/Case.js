@@ -15,14 +15,17 @@ const caseSchema = new mongoose.Schema({
   },
   assignedOfficerId: { type: String, default: null },
   department: { type: String, default: null },
+  registrationPassword: { type: String },
+  feedbackSubmitted: { type: Boolean, default: false },
+  documentCount: { type: Number, default: 0 },
+  sourcePortal: { type: String, default: 'cpgrams-web' },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now },
 });
 
 // Auto-update updatedAt on save
-caseSchema.pre('save', function (next) {
+caseSchema.pre('save', function () {
   this.updatedAt = new Date();
-  next();
 });
 
 module.exports = mongoose.model('Case', caseSchema);

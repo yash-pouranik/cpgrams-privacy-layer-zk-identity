@@ -18,12 +18,14 @@ export default function DisclosureAuthorityConsole() {
   const [requests, setRequests] = useState<DisclosureRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [revealed, setRevealed] = useState<{ [id: string]: string }>({});
+  
+  const token = process.env.NEXT_PUBLIC_AUTHORITY_TOKEN || "authority-secret-change-me";
 
   const fetchRequests = async () => {
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
       const res = await fetch(`${apiUrl}/disclosure/pending`, {
-        headers: { "X-Authority-Token": "authority-secret-change-me" },
+        headers: { "X-Authority-Token": token },
       });
       if (res.ok) {
         const data = await res.json();
@@ -50,7 +52,7 @@ export default function DisclosureAuthorityConsole() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "X-Authority-Token": "authority-secret-change-me",
+          "X-Authority-Token": token,
         },
         body: JSON.stringify({ courtOrderRef }),
       });
@@ -76,7 +78,7 @@ export default function DisclosureAuthorityConsole() {
       const res = await fetch(`${apiUrl}/disclosure/${id}/reject`, {
         method: "POST",
         headers: {
-          "X-Authority-Token": "authority-secret-change-me",
+          "X-Authority-Token": token,
         },
       });
 

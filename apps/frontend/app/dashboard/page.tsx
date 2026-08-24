@@ -11,6 +11,7 @@ interface Case {
   category: string;
   status: string;
   createdAt: string;
+  feedbackSubmitted?: boolean;
 }
 
 export default function DashboardPage() {
@@ -81,7 +82,14 @@ export default function DashboardPage() {
       ) : (
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {cases.map((c) => (
-            <CaseCard key={c.caseId} data={c} href={`/case/${c.caseId}`} />
+            <div key={c.caseId} className="relative">
+              <CaseCard data={c} href={`/case/${c.caseId}`} />
+              {c.status === 'resolved' && c.feedbackSubmitted && (
+                <div className="absolute top-2 right-2 mt-[-10px] mr-[-10px]">
+                  <span className="badge badge-success badge-sm shadow-sm text-xs text-white">Feedback Submitted</span>
+                </div>
+              )}
+            </div>
           ))}
         </div>
       )}

@@ -20,7 +20,7 @@ export default function OfficerDashboard() {
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
         const res = await fetch(`${apiUrl}/officer/cases`, {
           headers: {
-            "X-Officer-Id": "officer-001",
+            "X-Officer-Id": "PWD-001",
           },
         });
 
@@ -50,7 +50,7 @@ export default function OfficerDashboard() {
     <div className="max-w-5xl mx-auto w-full px-6 py-12 flex-1">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-[#111827] tracking-tight">Officer Dashboard</h1>
-        <p className="text-[#6B7280] mt-2">Assigned cases for officer-001</p>
+        <p className="text-[#6B7280] mt-2">Assigned cases for PWD-001</p>
       </div>
 
       {cases.length === 0 ? (

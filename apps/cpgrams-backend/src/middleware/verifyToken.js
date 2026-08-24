@@ -1,19 +1,24 @@
 'use strict';
 
-const { Issuer } = require('openid-client');
+const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 
-let _issuer = null;
 let _jwks = null;
+let _jwksTimestamp = null;
 
-/**
- * Discover the OIDC issuer and cache it.
- */
-async function getIssuer() {
-  if (_issuer) return _issuer;
-  const ssoUrl = process.env.SSO_ISSUER_URL || 'http://localhost:4000';
-  _issuer = await Issuer.discover(ssoUrl + '/oidc');
-  return _issuer;
+async function getJwks() {
+  const now = Date.now();
+  if (_jwks && _jwksTimestamp && (now - _jwksTimestamp < 3600000)) {
+    return _jwks;
+  }
+  const ssoUrl = process.env.SSO_ISSUER_URL || 'http://localhost:4000/oidc';
+  const response = await fetch(`${ssoUrl}/jwks`);
+  if (!response.ok) {
+    throw new Error('Failed to fetch JWKS');
+  }
+  _jwks = await response.json();
+  _jwksTimestamp = now;
+  return _jwks;
 }
 
 /**
@@ -24,7 +29,6 @@ async function getIssuer() {
  */
 async function verifyToken(req, res, next) {
   try {
-    // Get token from Authorization header or session
     let token = null;
 
     const authHeader = req.headers.authorization;
@@ -38,32 +42,29 @@ async function verifyToken(req, res, next) {
       return res.status(401).json({ error: 'Authentication required. No token provided.' });
     }
 
-    // Decode the token to extract claims
-    // For hackathon: we do a basic JWT decode + verify the issuer
-    // In production, you'd verify the signature against the JWKS
-    const decoded = jwt.decode(token, { complete: true });
-
-    if (!decoded || !decoded.payload) {
-      return res.status(401).json({ error: 'Invalid token format.' });
+    const decodedHeader = jwt.decode(token, { complete: true });
+    if (!decodedHeader || !decodedHeader.header || !decodedHeader.header.kid) {
+      return res.status(401).json({ error: 'Invalid token format or missing kid.' });
     }
 
-    const { sub, iss } = decoded.payload;
-
-    if (!sub) {
-      return res.status(401).json({ error: 'Token missing sub claim.' });
+    const jwks = await getJwks();
+    const jwk = jwks.keys.find(k => k.kid === decodedHeader.header.kid);
+    if (!jwk) {
+      return res.status(401).json({ error: 'Invalid token signature (kid not found).' });
     }
 
-    // Verify issuer matches our SSO
+    const pem = crypto.createPublicKey({ key: jwk, format: 'jwk' }).export({ type: 'spki', format: 'pem' });
     const expectedIssuer = process.env.SSO_ISSUER_URL || 'http://localhost:4000/oidc';
-    if (iss && iss !== expectedIssuer) {
-      return res.status(401).json({ error: 'Token issuer mismatch.' });
-    }
+    
+    const decoded = jwt.verify(token, pem, { algorithms: ['RS256'], issuer: expectedIssuer });
 
-    // Attach citizen info — sub IS the pairwiseId
-    req.citizen = { pairwiseId: sub };
+    req.citizen = { pairwiseId: decoded.sub };
     next();
   } catch (err) {
     console.error('Token verification error:', err.message);
+    if (err.name === 'TokenExpiredError') {
+      return res.status(401).json({ error: 'Token expired.' });
+    }
     return res.status(401).json({ error: 'Token verification failed.' });
   }
 }

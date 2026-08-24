@@ -273,6 +273,10 @@ npm run dev:all
 
 ---
 
+## Known Issues
+
+All identified bugs and flow breaks are tracked in [`docs/ISSUES.md`](docs/ISSUES.md). This includes critical flow breaks (officer ID mismatch, SSO_ISSUER_URL inconsistency, unauthenticated chat), high security issues (JWT signature not verified, hardcoded authority token), and minor issues. Fixes should be prioritized per the order in that file.
+
 ## Update Log
 
 | Date | What changed |
@@ -286,3 +290,5 @@ npm run dev:all
 | Day 3 (Cont.) | Fixed root package.json JSON syntax error (missing comma after the "dev" script entry, line 14) that was breaking the frontend build (Turbopack reads package.json as a directory description file while evaluating globals.css). Added root-level run scripts (`dev`, `dev:sso`, `dev:cpgrams`, `dev:frontend`, `dev:all`) and documented them in "How to Run". |
 | Day 3 (Cont.) | Fixed components/ui/button.tsx: `asChild` was being spread through to the DOM element (React "does not recognize the asChild prop" error). Changed Button to the canonical shadcn pattern — destructure `asChild` and render `Slot` from `@radix-ui/react-slot` when `asChild` is true, otherwise the base-ui ButtonPrimitive. This fixes `<Button asChild>` usages in the landing page and citizen dashboard. |
 | Day 3 (Cont.) | Created apps/sso-server/.env and apps/cpgrams-backend/.env with dev secrets, aligning CPGRAMS_CLIENT_SECRET and COURT_ORDER_SECRET across both. The SSO .env omits a resend key (OTP prints to console in dev). Fixed AGENTS.md backend env docs: SSO_ISSUER_URL must be "http://localhost:4000/oidc" for the backend (Issuer.discover needs the /oidc mount), not "http://localhost:4000". Button now works given the SSO (4000) + backend (5000) + MySQL/MongoDB are running. |
+| Day 3 (Cont.) | Full code review across all 3 apps. Created `docs/ISSUES.md` tracking 12 bugs/flow breaks (3 critical, 6 high security, 3 minor). Added "Known Issues" section to AGENTS.md. **Fixed Issue #1 (Officer ID mismatch):** changed `officer-001` → `PWD-001` in `apps/frontend/app/officer/page.tsx` and `apps/frontend/app/officer/case/[caseId]/page.tsx`. Also fixed 2 TS errors in officer case page: Select `onValueChange` type (base-ui passes `string | null`) and DialogTrigger `asChild` → `render` prop (base-ui API). |
+| Day 3 (Cont.) | **Full CPGRAMS Real Feature Suite + Security Fixes (100% Automated Test Coverage)**:<br>1. **Master Data Services**: Seeded & exposed 15 Departments, 34 hierarchical Categories, and 10 Nodal Officers (`/master/*`).<br>2. **External Push Grievance API**: Web service with API key auth (`/api/push/grievance`).<br>3. **Public Status Tracking**: Registration ID + password verification with timeline history (`/status/check`, `/status/:caseId/history`).<br>4. **Citizen Document Upload & Management**: Multer-backed upload & download (`/grievance/:caseId/documents`).<br>5. **Reminders & Clarifications Workflow**: Bidirectional communication (`/grievance/:caseId/reminder`, `/officer/case/:caseId/clarification`).<br>6. **Redressal Feedback**: 1-5 star ratings for resolved cases (`/grievance/:caseId/feedback`).<br>7. **Security Hardening**: JWKS cryptographic JWT signature validation, CSRF state verification, one-time exchange code pattern (no tokens in URL), authenticated chat with server-derived roles, and officer ownership enforcement. |

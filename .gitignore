@@ -7,3 +7,5 @@ build/
 *.log
 .DS_Store
 apps/sso-server/keys/
+uploads/
+apps/cpgrams-backend/uploads/

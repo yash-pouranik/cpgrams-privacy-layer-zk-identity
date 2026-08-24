@@ -14,10 +14,21 @@ export default function NewGrievancePage() {
   const router = useRouter();
   const { toast } = useToast();
   
+  const [categories, setCategories] = useState<{ name: string; parentCode: string | null }[]>([]);
   const [category, setCategory] = useState<string>("");
   const [description, setDescription] = useState("");
   const [evidenceUrl, setEvidenceUrl] = useState("");
+  const [files, setFiles] = useState<File[]>([]);
   const [loading, setLoading] = useState(false);
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+
+  // Fetch categories
+  useEffect(() => {
+    fetch(`${apiUrl}/master/categories`)
+      .then(r => r.json())
+      .then(data => setCategories(data))
+      .catch(err => console.error("Failed to load categories:", err));
+  }, [apiUrl]);
 
   // Load draft
   useEffect(() => {
@@ -54,7 +65,6 @@ export default function NewGrievancePage() {
     }
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
       const res = await fetch(`${apiUrl}/grievance`, {
         method: "POST",
         headers: {
@@ -71,7 +81,24 @@ export default function NewGrievancePage() {
       if (!res.ok) throw new Error("Failed to file grievance");
 
       const data = await res.json();
+      
+      // Upload files if any
+      if (files.length > 0) {
+        const formData = new FormData();
+        files.forEach(f => formData.append("files", f));
+        
+        await fetch(`${apiUrl}/grievance/${data.caseId}/documents`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          body: formData,
+        });
+      }
+
       localStorage.removeItem(AUTOSAVE_KEY);
+      
+      alert(`Save this Registration Password: ${data.password}\n\nYou can use it to check status without logging in.`);
       
       toast({
         title: "Grievance Filed Successfully",
@@ -104,14 +131,14 @@ export default function NewGrievancePage() {
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-2">
               <label className="text-sm font-medium text-[#111827]">Category</label>
-              <Select value={category} onValueChange={setCategory}>
+              <Select value={category} onValueChange={(val) => setCategory(val || "")}>
                 <SelectTrigger className="w-full bg-[#F9FAFB] border-[#E5E7EB]">
                   <SelectValue placeholder="Select a category" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Infrastructure">Infrastructure</SelectItem>
-                  <SelectItem value="Health">Health</SelectItem>
-                  <SelectItem value="Corruption">Corruption</SelectItem>
+                  {categories.filter(c => c.parentCode === null).map((cat, idx) => (
+                    <SelectItem key={idx} value={cat.name}>{cat.name}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -140,6 +167,17 @@ export default function NewGrievancePage() {
                 className="min-h-[60px] bg-[#F9FAFB] border-[#E5E7EB]"
               />
               <p className="text-xs text-[#6B7280]">Separate multiple URLs with commas.</p>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-[#111827]">Attachments (Optional)</label>
+              <input 
+                type="file" 
+                multiple 
+                accept=".pdf,.png,.jpg,.jpeg" 
+                onChange={(e) => setFiles(Array.from(e.target.files || []))}
+                className="file-input file-input-bordered w-full bg-[#F9FAFB]" 
+              />
             </div>
 
             <div className="pt-4 flex justify-end">

@@ -1,0 +1,225 @@
+'use strict';
+
+const { Router } = require('express');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
+const Case = require('../models/Case');
+const Document = require('../models/Document');
+const verifyToken = require('../middleware/verifyToken');
+
+const router = Router();
+
+function requireOfficer(req, res, next) {
+  const officerId = req.headers['x-officer-id'];
+  if (!officerId) {
+    return res.status(401).json({ error: 'X-Officer-Id header required.' });
+  }
+  req.officer = { officerId };
+  next();
+}
+
+const uploadDir = path.join(__dirname, '..', '..', 'uploads');
+if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, uploadDir),
+  filename: (req, file, cb) => cb(null, `${Date.now()}-${Math.random().toString(36).slice(2)}-${file.originalname}`)
+});
+
+const upload = multer({
+  storage,
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const allowed = ['application/pdf', 'image/png', 'image/jpeg', 'image/jpg'];
+    cb(null, allowed.includes(file.mimetype));
+  }
+});
+
+/**
+ * POST /grievance/:caseId/documents
+ */
+router.post('/grievance/:caseId/documents', verifyToken, upload.array('files', 5), async (req, res) => {
+  try {
+    const { pairwiseId } = req.citizen;
+    const { caseId } = req.params;
+
+    const grievance = await Case.findOne({ caseId });
+    if (!grievance) return res.status(404).json({ error: 'Case not found.' });
+    if (grievance.pairwiseId !== pairwiseId) return res.status(403).json({ error: 'Access denied.' });
+
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({ error: 'No files uploaded.' });
+    }
+
+    const docs = [];
+    for (const file of req.files) {
+      const doc = await Document.create({
+        caseId,
+        fileName: file.filename,
+        originalName: file.originalname,
+        mimeType: file.mimetype,
+        sizeBytes: file.size,
+        storagePath: file.path,
+        uploadedBy: pairwiseId,
+        uploadedByRole: 'citizen'
+      });
+      docs.push(doc);
+    }
+
+    await Case.updateOne({ caseId }, { $inc: { documentCount: docs.length } });
+
+    const response = docs.map(d => ({
+      _id: d._id,
+      originalName: d.originalName,
+      mimeType: d.mimeType,
+      sizeBytes: d.sizeBytes,
+      uploadedByRole: d.uploadedByRole,
+      createdAt: d.createdAt
+    }));
+    return res.status(201).json(response);
+  } catch (err) {
+    console.error('Citizen upload error:', err);
+    return res.status(500).json({ error: 'Internal server error.' });
+  }
+});
+
+/**
+ * GET /grievance/:caseId/documents
+ */
+router.get('/grievance/:caseId/documents', verifyToken, async (req, res) => {
+  try {
+    const { pairwiseId } = req.citizen;
+    const { caseId } = req.params;
+
+    const grievance = await Case.findOne({ caseId });
+    if (!grievance) return res.status(404).json({ error: 'Case not found.' });
+    if (grievance.pairwiseId !== pairwiseId) return res.status(403).json({ error: 'Access denied.' });
+
+    const docs = await Document.find({ caseId }).select('_id originalName mimeType sizeBytes uploadedByRole createdAt');
+    return res.json(docs);
+  } catch (err) {
+    console.error('Citizen list docs error:', err);
+    return res.status(500).json({ error: 'Internal server error.' });
+  }
+});
+
+/**
+ * GET /grievance/:caseId/documents/:docId/download
+ */
+router.get('/grievance/:caseId/documents/:docId/download', verifyToken, async (req, res) => {
+  try {
+    const { pairwiseId } = req.citizen;
+    const { caseId, docId } = req.params;
+
+    const grievance = await Case.findOne({ caseId });
+    if (!grievance) return res.status(404).json({ error: 'Case not found.' });
+    if (grievance.pairwiseId !== pairwiseId) return res.status(403).json({ error: 'Access denied.' });
+
+    const doc = await Document.findOne({ _id: docId, caseId });
+    if (!doc) return res.status(404).json({ error: 'Document not found.' });
+
+    res.setHeader('Content-Type', doc.mimeType);
+    res.setHeader('Content-Disposition', `attachment; filename="${doc.originalName}"`);
+    const stream = fs.createReadStream(doc.path);
+    stream.pipe(res);
+  } catch (err) {
+    console.error('Citizen download doc error:', err);
+    return res.status(500).json({ error: 'Internal server error.' });
+  }
+});
+
+/**
+ * POST /officer/case/:caseId/documents
+ */
+router.post('/officer/case/:caseId/documents', requireOfficer, upload.array('files', 5), async (req, res) => {
+  try {
+    const { officerId } = req.officer;
+    const { caseId } = req.params;
+
+    const grievance = await Case.findOne({ caseId });
+    if (!grievance) return res.status(404).json({ error: 'Case not found.' });
+    if (grievance.assignedOfficerId !== officerId) return res.status(403).json({ error: 'Access denied.' });
+
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({ error: 'No files uploaded.' });
+    }
+
+    const docs = [];
+    for (const file of req.files) {
+      const doc = await Document.create({
+        caseId,
+        fileName: file.filename,
+        originalName: file.originalname,
+        mimeType: file.mimetype,
+        sizeBytes: file.size,
+        storagePath: file.path,
+        uploadedBy: officerId,
+        uploadedByRole: 'officer'
+      });
+      docs.push(doc);
+    }
+
+    await Case.updateOne({ caseId }, { $inc: { documentCount: docs.length } });
+
+    const response = docs.map(d => ({
+      _id: d._id,
+      originalName: d.originalName,
+      mimeType: d.mimeType,
+      sizeBytes: d.sizeBytes,
+      uploadedByRole: d.uploadedByRole,
+      createdAt: d.createdAt
+    }));
+    return res.status(201).json(response);
+  } catch (err) {
+    console.error('Officer upload error:', err);
+    return res.status(500).json({ error: 'Internal server error.' });
+  }
+});
+
+/**
+ * GET /officer/case/:caseId/documents
+ */
+router.get('/officer/case/:caseId/documents', requireOfficer, async (req, res) => {
+  try {
+    const { officerId } = req.officer;
+    const { caseId } = req.params;
+
+    const grievance = await Case.findOne({ caseId });
+    if (!grievance) return res.status(404).json({ error: 'Case not found.' });
+    if (grievance.assignedOfficerId !== officerId) return res.status(403).json({ error: 'Access denied.' });
+
+    const docs = await Document.find({ caseId }).select('_id originalName mimeType sizeBytes uploadedByRole createdAt');
+    return res.json(docs);
+  } catch (err) {
+    console.error('Officer list docs error:', err);
+    return res.status(500).json({ error: 'Internal server error.' });
+  }
+});
+
+/**
+ * GET /officer/case/:caseId/documents/:docId/download
+ */
+router.get('/officer/case/:caseId/documents/:docId/download', requireOfficer, async (req, res) => {
+  try {
+    const { officerId } = req.officer;
+    const { caseId, docId } = req.params;
+
+    const grievance = await Case.findOne({ caseId });
+    if (!grievance) return res.status(404).json({ error: 'Case not found.' });
+    if (grievance.assignedOfficerId !== officerId) return res.status(403).json({ error: 'Access denied.' });
+
+    const doc = await Document.findOne({ _id: docId, caseId });
+    if (!doc) return res.status(404).json({ error: 'Document not found.' });
+
+    res.setHeader('Content-Type', doc.mimeType);
+    res.setHeader('Content-Disposition', `attachment; filename="${doc.originalName}"`);
+    const stream = fs.createReadStream(doc.path);
+    stream.pipe(res);
+  } catch (err) {
+    console.error('Officer download doc error:', err);
+    return res.status(500).json({ error: 'Internal server error.' });
+  }
+});
+
+module.exports = router;

@@ -1,5 +1,7 @@
 'use strict';
 
+const crypto = require('crypto');
+const bcrypt = require('bcryptjs');
 const { Router } = require('express');
 const Case = require('../models/Case');
 const AuditLog = require('../models/AuditLog');
@@ -15,22 +17,25 @@ router.use(verifyToken);
 /**
  * POST /grievance
  * File a new grievance.
- * Body: { category, description, evidenceUrls? }
+ * Body: { category, description, evidenceUrls?, sourcePortal? }
  */
 router.post('/', async (req, res) => {
   try {
     const { pairwiseId } = req.citizen;
-    const { category, description, evidenceUrls } = req.body;
+    const { category, description, evidenceUrls, sourcePortal = 'cpgrams-web' } = req.body;
 
     if (!category || !description) {
       return res.status(400).json({ error: 'category and description are required.' });
     }
 
-    const caseId = generateCaseId(pairwiseId);
+    const caseId = await generateCaseId(pairwiseId);
     const department = getDepartment(category);
 
     // Try to auto-assign an officer
     const officer = await autoAssign(category);
+
+    const password = crypto.randomBytes(4).toString('hex');
+    const hash = await bcrypt.hash(password, 10);
 
     const newCase = await Case.create({
       caseId,
@@ -41,6 +46,8 @@ router.post('/', async (req, res) => {
       status: officer ? 'assigned' : 'pending',
       assignedOfficerId: officer ? officer.officerId : null,
       department,
+      registrationPassword: hash,
+      sourcePortal,
     });
 
     // Audit log
@@ -49,7 +56,7 @@ router.post('/', async (req, res) => {
       actorId: pairwiseId,
       targetCaseId: caseId,
       targetPairwiseId: pairwiseId,
-      metadata: { category, department, assignedOfficerId: officer ? officer.officerId : null },
+      metadata: { category, department, assignedOfficerId: officer ? officer.officerId : null, sourcePortal },
     });
 
     // Response — NEVER include pairwiseId
@@ -60,6 +67,7 @@ router.post('/', async (req, res) => {
       assignedDepartment: newCase.department,
       assignedOfficerId: newCase.assignedOfficerId,
       createdAt: newCase.createdAt,
+      registrationPassword: password,
     });
   } catch (err) {
     console.error('File grievance error:', err);

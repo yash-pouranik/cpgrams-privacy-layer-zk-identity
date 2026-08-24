@@ -14,19 +14,33 @@ interface Message {
 interface ChatThreadProps {
   caseId: string;
   role: "citizen" | "officer";
+  authToken?: string;
+  officerId?: string;
 }
 
-export function ChatThread({ caseId, role }: ChatThreadProps) {
+export function ChatThread({ caseId, role, authToken, officerId }: ChatThreadProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
   const [content, setContent] = useState("");
   const [sending, setSending] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
+  const getHeaders = () => {
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (role === "citizen" && authToken) {
+      headers["Authorization"] = `Bearer ${authToken}`;
+    } else if (role === "officer" && officerId) {
+      headers["X-Officer-Id"] = officerId;
+    }
+    return headers;
+  };
+
   const fetchMessages = async () => {
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
-      const res = await fetch(`${apiUrl}/chat/${caseId}`);
+      const res = await fetch(`${apiUrl}/chat/${caseId}`, {
+        headers: getHeaders(),
+      });
       if (res.ok) {
         const data = await res.json();
         setMessages(data);
@@ -56,8 +70,8 @@ export function ChatThread({ caseId, role }: ChatThreadProps) {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
       const res = await fetch(`${apiUrl}/chat/${caseId}`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ senderRole: role, content }),
+        headers: getHeaders(),
+        body: JSON.stringify({ content }),
       });
 
       if (res.ok) {
