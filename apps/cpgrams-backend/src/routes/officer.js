@@ -75,6 +75,23 @@ function requireOfficer(req, res, next) {
 router.use(requireOfficer);
 
 /**
+ * GET /officer/me
+ * Return profile of authenticated officer.
+ */
+router.get('/me', async (req, res) => {
+  try {
+    const officer = await Officer.findOne({ officerId: req.officer.officerId }).select('-passwordHash -__v');
+    if (!officer) {
+      return res.status(404).json({ error: 'Officer not found.' });
+    }
+    return res.json(officer);
+  } catch (err) {
+    console.error('Get officer profile error:', err);
+    return res.status(500).json({ error: 'Internal server error.' });
+  }
+});
+
+/**
  * GET /officer/cases
  * List all cases assigned to this officer.
  * NEVER include pairwiseId.

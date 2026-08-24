@@ -71,17 +71,21 @@ const categories = [
   { code: 'WCD-NUTRITION', name: 'Child Nutrition (ICDS)', parentCode: 'WCD', departmentCode: 'WCD', description: 'Anganwadi, mid-day meal issues' },
 ];
 
+const { hashPassword } = require('../services/officerAuth');
+
+const defaultOfficerPassword = hashPassword('Officer@123');
+
 const officers = [
-  { officerId: 'PWD-001', name: 'Rajesh Kumar', department: 'PWD', level: 1 },
-  { officerId: 'PWD-002', name: 'Sunita Devi', department: 'PWD', level: 2 },
-  { officerId: 'HEALTH-001', name: 'Dr. Ananya Roy', department: 'Health', level: 1 },
-  { officerId: 'HEALTH-002', name: 'Dr. Vikram Singh', department: 'Health', level: 3 },
-  { officerId: 'POLICE-001', name: 'Inspector Meera Joshi', department: 'Police', level: 2 },
-  { officerId: 'EDU-001', name: 'Prof. Arjun Mehta', department: 'Education', level: 1 },
-  { officerId: 'REVENUE-001', name: 'Kavita Sharma', department: 'Revenue', level: 2 },
-  { officerId: 'TRANSPORT-001', name: 'Ravi Patel', department: 'Transport', level: 1 },
-  { officerId: 'ENV-001', name: 'Dr. Neha Gupta', department: 'Environment', level: 2 },
-  { officerId: 'SOCIAL-001', name: 'Deepak Verma', department: 'Social', level: 1 },
+  { officerId: 'PWD-001', name: 'Rajesh Kumar', department: 'PWD', level: 1, passwordHash: defaultOfficerPassword },
+  { officerId: 'PWD-002', name: 'Sunita Devi', department: 'PWD', level: 2, passwordHash: defaultOfficerPassword },
+  { officerId: 'HEALTH-001', name: 'Dr. Ananya Roy', department: 'Health', level: 1, passwordHash: defaultOfficerPassword },
+  { officerId: 'HEALTH-002', name: 'Dr. Vikram Singh', department: 'Health', level: 3, passwordHash: defaultOfficerPassword },
+  { officerId: 'POLICE-001', name: 'Inspector Meera Joshi', department: 'Police', level: 2, passwordHash: defaultOfficerPassword },
+  { officerId: 'EDU-001', name: 'Prof. Arjun Mehta', department: 'Education', level: 1, passwordHash: defaultOfficerPassword },
+  { officerId: 'REVENUE-001', name: 'Kavita Sharma', department: 'Revenue', level: 2, passwordHash: defaultOfficerPassword },
+  { officerId: 'TRANSPORT-001', name: 'Ravi Patel', department: 'Transport', level: 1, passwordHash: defaultOfficerPassword },
+  { officerId: 'ENV-001', name: 'Dr. Neha Gupta', department: 'Environment', level: 2, passwordHash: defaultOfficerPassword },
+  { officerId: 'SOCIAL-001', name: 'Deepak Verma', department: 'Social', level: 1, passwordHash: defaultOfficerPassword },
 ];
 
 async function seed() {
