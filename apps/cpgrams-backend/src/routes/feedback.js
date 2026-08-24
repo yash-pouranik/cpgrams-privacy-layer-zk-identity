@@ -6,13 +6,32 @@ const Feedback = require('../models/Feedback');
 const AuditLog = require('../models/AuditLog');
 const verifyToken = require('../middleware/verifyToken');
 
+const { verifyOfficerToken } = require('../services/officerAuth');
+
 const router = Router();
 
 function requireOfficer(req, res, next) {
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    const rawToken = authHeader.slice(7).trim();
+    const payload = verifyOfficerToken(rawToken);
+    if (payload && payload.officerId) {
+      req.officer = {
+        officerId: payload.officerId,
+        name: payload.name,
+        department: payload.department,
+      };
+      return next();
+    }
+  }
+
   const officerId = req.headers['x-officer-id'];
-  if (!officerId) return res.status(401).json({ error: 'X-Officer-Id header required.' });
-  req.officer = { officerId };
-  next();
+  if (officerId) {
+    req.officer = { officerId: officerId.trim().toUpperCase() };
+    return next();
+  }
+
+  return res.status(401).json({ error: 'Officer authentication required.' });
 }
 
 /**

@@ -27,9 +27,10 @@ export function ChatThread({ caseId, role, authToken, officerId }: ChatThreadPro
 
   const getHeaders = () => {
     const headers: Record<string, string> = { "Content-Type": "application/json" };
-    if (role === "citizen" && authToken) {
+    if (authToken) {
       headers["Authorization"] = `Bearer ${authToken}`;
-    } else if (role === "officer" && officerId) {
+    }
+    if (officerId) {
       headers["X-Officer-Id"] = officerId;
     }
     return headers;

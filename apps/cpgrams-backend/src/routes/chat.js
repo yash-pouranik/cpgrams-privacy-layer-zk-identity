@@ -3,30 +3,49 @@
 const { Router } = require('express');
 const Message = require('../models/Message');
 const Case = require('../models/Case');
+const verifyToken = require('../middleware/verifyToken');
+const { verifyOfficerToken } = require('../services/officerAuth');
 
 const router = Router();
-const verifyToken = require('../middleware/verifyToken');
-
-function requireOfficer(req, res, next) {
-  const officerId = req.headers['x-officer-id'];
-  if (!officerId) {
-    return res.status(401).json({ error: 'X-Officer-Id header required.' });
-  }
-  req.officer = { officerId };
-  next();
-}
 
 function flexAuth(req, res, next) {
   const authHeader = req.headers.authorization;
-  if ((authHeader && authHeader.startsWith('Bearer ')) || (req.session && req.session.accessToken)) {
+  
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    const rawToken = authHeader.slice(7).trim();
+    
+    // First, test if it's an Officer JWT token
+    const officerPayload = verifyOfficerToken(rawToken);
+    if (officerPayload && officerPayload.officerId) {
+      req.authType = 'officer';
+      req.officer = {
+        officerId: officerPayload.officerId,
+        name: officerPayload.name,
+        department: officerPayload.department,
+      };
+      return next();
+    }
+    
+    // If not officer token, treat as citizen OIDC token
     req.authType = 'citizen';
     return verifyToken(req, res, next);
-  } else if (req.headers['x-officer-id']) {
-    req.authType = 'officer';
-    return requireOfficer(req, res, next);
-  } else {
-    return res.status(401).json({ error: 'Authentication required. No token or officer ID provided.' });
   }
+
+  // Fallback to direct X-Officer-Id header
+  const officerId = req.headers['x-officer-id'];
+  if (officerId) {
+    req.authType = 'officer';
+    req.officer = { officerId: officerId.trim().toUpperCase() };
+    return next();
+  }
+
+  // Check citizen session token
+  if (req.session && req.session.accessToken) {
+    req.authType = 'citizen';
+    return verifyToken(req, res, next);
+  }
+
+  return res.status(401).json({ error: 'Authentication required. No token or officer ID provided.' });
 }
 
 /**
@@ -40,10 +59,10 @@ router.get('/:caseId', flexAuth, async (req, res) => {
       return res.status(404).json({ error: 'Case not found.' });
     }
 
-    if (req.authType === 'citizen' && grievance.pairwiseId !== req.citizen.pairwiseId) {
+    if (req.authType === 'citizen' && grievance.pairwiseId !== req.citizen?.pairwiseId) {
       return res.status(403).json({ error: 'Forbidden. Case belongs to a different citizen.' });
     }
-    if (req.authType === 'officer' && grievance.assignedOfficerId !== req.officer.officerId) {
+    if (req.authType === 'officer' && grievance.assignedOfficerId !== req.officer?.officerId) {
       return res.status(403).json({ error: 'Forbidden. Case assigned to a different officer.' });
     }
 
@@ -61,8 +80,8 @@ router.get('/:caseId', flexAuth, async (req, res) => {
 /**
  * POST /chat/:caseId
  * Send a message.
- * Body: { senderRole, content }
- * No sender identity in response — only role.
+ * Body: { content }
+ * Role is derived server-side.
  */
 router.post('/:caseId', flexAuth, async (req, res) => {
   try {
@@ -77,10 +96,10 @@ router.post('/:caseId', flexAuth, async (req, res) => {
       return res.status(404).json({ error: 'Case not found.' });
     }
 
-    if (req.authType === 'citizen' && grievance.pairwiseId !== req.citizen.pairwiseId) {
+    if (req.authType === 'citizen' && grievance.pairwiseId !== req.citizen?.pairwiseId) {
       return res.status(403).json({ error: 'Forbidden. Case belongs to a different citizen.' });
     }
-    if (req.authType === 'officer' && grievance.assignedOfficerId !== req.officer.officerId) {
+    if (req.authType === 'officer' && grievance.assignedOfficerId !== req.officer?.officerId) {
       return res.status(403).json({ error: 'Forbidden. Case assigned to a different officer.' });
     }
 

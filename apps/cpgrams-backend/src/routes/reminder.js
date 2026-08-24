@@ -5,14 +5,32 @@ const Case = require('../models/Case');
 const Reminder = require('../models/Reminder');
 const AuditLog = require('../models/AuditLog');
 const verifyToken = require('../middleware/verifyToken');
+const { verifyOfficerToken } = require('../services/officerAuth');
 
 const router = Router();
 
 function requireOfficer(req, res, next) {
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    const rawToken = authHeader.slice(7).trim();
+    const payload = verifyOfficerToken(rawToken);
+    if (payload && payload.officerId) {
+      req.officer = {
+        officerId: payload.officerId,
+        name: payload.name,
+        department: payload.department,
+      };
+      return next();
+    }
+  }
+
   const officerId = req.headers['x-officer-id'];
-  if (!officerId) return res.status(401).json({ error: 'X-Officer-Id header required.' });
-  req.officer = { officerId };
-  next();
+  if (officerId) {
+    req.officer = { officerId: officerId.trim().toUpperCase() };
+    return next();
+  }
+
+  return res.status(401).json({ error: 'Officer authentication required.' });
 }
 
 /**
@@ -69,7 +87,7 @@ router.get('/grievance/:caseId/reminders', verifyToken, async (req, res) => {
     const reminders = await Reminder.find({ caseId }).sort({ createdAt: 1 });
     return res.json(reminders);
   } catch (err) {
-    console.error('Citizen list reminders error:', err);
+    console.error('Get citizen reminders error:', err);
     return res.status(500).json({ error: 'Internal server error.' });
   }
 });
@@ -83,11 +101,15 @@ router.post('/officer/case/:caseId/clarification', requireOfficer, async (req, r
     const { caseId } = req.params;
     const { content } = req.body;
 
-    if (!content) return res.status(400).json({ error: 'Missing content.' });
+    if (!content) {
+      return res.status(400).json({ error: 'Content is required.' });
+    }
 
     const grievance = await Case.findOne({ caseId });
     if (!grievance) return res.status(404).json({ error: 'Case not found.' });
-    if (grievance.assignedOfficerId !== officerId) return res.status(403).json({ error: 'Access denied.' });
+    if (grievance.assignedOfficerId !== officerId) {
+      return res.status(403).json({ error: 'Case assigned to a different officer.' });
+    }
 
     const reminder = await Reminder.create({
       caseId,
@@ -120,12 +142,14 @@ router.get('/officer/case/:caseId/reminders', requireOfficer, async (req, res) =
 
     const grievance = await Case.findOne({ caseId });
     if (!grievance) return res.status(404).json({ error: 'Case not found.' });
-    if (grievance.assignedOfficerId !== officerId) return res.status(403).json({ error: 'Access denied.' });
+    if (grievance.assignedOfficerId !== officerId) {
+      return res.status(403).json({ error: 'Case assigned to a different officer.' });
+    }
 
     const reminders = await Reminder.find({ caseId }).sort({ createdAt: 1 });
     return res.json(reminders);
   } catch (err) {
-    console.error('Officer list reminders error:', err);
+    console.error('Get officer reminders error:', err);
     return res.status(500).json({ error: 'Internal server error.' });
   }
 });
