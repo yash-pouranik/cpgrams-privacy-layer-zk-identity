@@ -87,8 +87,10 @@ app.use((err, req, res, next) => {
 });
 
 // ---- Start ----
-app.listen(PORT, () => {
-  console.log(`CPGRAMS Backend running at http://localhost:${PORT}`);
-});
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`CPGRAMS Backend running at http://localhost:${PORT}`);
+  });
+}
 
 module.exports = app;
