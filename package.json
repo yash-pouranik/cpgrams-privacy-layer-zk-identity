@@ -12,7 +12,8 @@
     "dev:cpgrams": "npm run dev -w apps/cpgrams-backend",
     "dev:frontend": "npm run dev -w apps/frontend",
     "dev": "npm run dev:sso && npm run dev:cpgrams && npm run dev:frontend",
-    "dev:all": "concurrently \"npm --prefix apps/sso-server run dev\" \"npm --prefix apps/cpgrams-backend run dev\" \"npm --prefix apps/frontend run dev\""
+    "dev:all": "concurrently \"npm --prefix apps/sso-server run dev\" \"npm --prefix apps/cpgrams-backend run dev\" \"npm --prefix apps/frontend run dev\"",
+    "test": "npm run test --workspaces --if-present"
   },
   "repository": {
     "type": "git",
