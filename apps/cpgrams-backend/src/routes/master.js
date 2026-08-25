@@ -96,7 +96,7 @@ router.get('/master/officers', async (req, res) => {
     if (level) query.level = Number(level);
     if (available === 'true') query.available = true;
 
-    const officers = await Officer.find(query).select('-_id -__v');
+    const officers = await Officer.find(query).select('-_id -__v -passwordHash');
     return res.json(officers);
   } catch (err) {
     console.error('List officers error:', err);
@@ -110,7 +110,7 @@ router.get('/master/officers', async (req, res) => {
 router.get('/master/officers/:officerId', async (req, res) => {
   try {
     const { officerId } = req.params;
-    const officer = await Officer.findOne({ officerId }).select('-_id -__v');
+    const officer = await Officer.findOne({ officerId }).select('-_id -__v -passwordHash');
     if (!officer) return res.status(404).json({ error: 'Officer not found.' });
     
     return res.json(officer);

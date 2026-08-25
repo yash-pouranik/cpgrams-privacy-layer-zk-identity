@@ -7,7 +7,6 @@ const AuditLog = require('../models/AuditLog');
 const verifyToken = require('../middleware/verifyToken');
 
 const { verifyOfficerToken } = require('../services/officerAuth');
-
 const router = Router();
 
 function requireOfficer(req, res, next) {
@@ -92,14 +91,29 @@ router.get('/grievance/:caseId/feedback', async (req, res) => {
 
     const authHeader = req.headers.authorization;
     const sessionToken = req.session && req.session.accessToken;
-    const officerId = req.headers['x-officer-id'];
+    const officerIdHeader = req.headers['x-officer-id'];
 
     let isCitizen = false;
     let isOfficer = false;
     let callerId = null;
 
-    if (authHeader || sessionToken) {
-      // Manual verification
+    // 1) Officer Bearer JWT (self-signed, no JWKS needed)
+    if (!isOfficer && !isCitizen && authHeader && authHeader.startsWith('Bearer ')) {
+      const payload = verifyOfficerToken(authHeader.slice(7).trim());
+      if (payload && payload.officerId) {
+        isOfficer = true;
+        callerId = payload.officerId;
+      }
+    }
+
+    // 2) Officer via X-Officer-Id header
+    if (!isOfficer && !isCitizen && officerIdHeader) {
+      isOfficer = true;
+      callerId = officerIdHeader.trim().toUpperCase();
+    }
+
+    // 3) Citizen OIDC token (JWT via JWKS or session)
+    if (!isOfficer && !isCitizen && (authHeader || sessionToken)) {
       await new Promise((resolve) => {
         verifyToken(req, res, () => {
           if (req.citizen) {
@@ -109,11 +123,10 @@ router.get('/grievance/:caseId/feedback', async (req, res) => {
           resolve();
         });
       });
-      if (res.headersSent) return; 
-    } else if (officerId) {
-      isOfficer = true;
-      callerId = officerId;
-    } else {
+      if (res.headersSent) return;
+    }
+
+    if (!isCitizen && !isOfficer) {
       return res.status(401).json({ error: 'Authentication required.' });
     }
 

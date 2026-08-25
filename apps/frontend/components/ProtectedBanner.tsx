@@ -1,3 +1,5 @@
+"use client";
+
 export function ProtectedBanner() {
   return (
     <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-8 flex items-start gap-4">

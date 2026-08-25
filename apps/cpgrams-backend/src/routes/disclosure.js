@@ -76,6 +76,7 @@ router.post('/request', async (req, res) => {
       id: disclosure._id,
       caseId: disclosure.caseId,
       status: disclosure.status,
+      requestedByOfficerId: disclosure.requestingOfficerId,
       message: 'Disclosure request submitted. Awaiting Disclosure Authority approval.',
     });
   } catch (err) {

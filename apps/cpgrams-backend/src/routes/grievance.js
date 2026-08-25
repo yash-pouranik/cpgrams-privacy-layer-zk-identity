@@ -13,15 +13,18 @@ const { autoAssign, getDepartment } = require('../services/autoAssign');
 
 const router = Router();
 
-// All grievance routes require citizen authentication
-router.use(verifyToken);
+// NOTE: Do NOT use router.use(verifyToken) here. This router is mounted before
+// other feature routers (documents/reminders/feedback), so a blanket middleware
+// would 401 any /grievance/<id>/<sub> request carrying a non-OIDC token
+// (e.g. an officer JWT) before those routers get a chance to handle it.
+// Auth is attached per-route below instead.
 
 /**
  * POST /grievance
  * File a new grievance.
  * Supports both JSON and multipart/form-data with file attachments.
  */
-router.post('/', upload.array('files', 5), async (req, res) => {
+router.post('/', verifyToken, upload.array('files', 5), async (req, res) => {
   try {
     const { pairwiseId } = req.citizen;
     const { category, description, urls, evidenceUrls: rawEvidenceUrls, sourcePortal = 'cpgrams-web' } = req.body;
@@ -124,7 +127,7 @@ router.post('/', upload.array('files', 5), async (req, res) => {
  * Get all cases for the authenticated citizen.
  * MUST be defined BEFORE /:caseId to avoid route collision.
  */
-router.get('/my', async (req, res) => {
+router.get('/my', verifyToken, async (req, res) => {
   try {
     const { pairwiseId } = req.citizen;
     const cases = await Case.find({ pairwiseId })
@@ -141,7 +144,7 @@ router.get('/my', async (req, res) => {
  * GET /grievance/:caseId
  * Get a specific case (citizen must own it).
  */
-router.get('/:caseId', async (req, res) => {
+router.get('/:caseId', verifyToken, async (req, res) => {
   try {
     const { pairwiseId } = req.citizen;
     const grievance = await Case.findOne({ caseId: req.params.caseId });
