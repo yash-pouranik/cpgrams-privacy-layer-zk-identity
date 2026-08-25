@@ -4,6 +4,7 @@ const { Router } = require('express');
 const Case = require('../models/Case');
 const Officer = require('../models/Officer');
 const Message = require('../models/Message');
+const DisclosureRequest = require('../models/DisclosureRequest');
 const AuditLog = require('../models/AuditLog');
 const {
   verifyPassword,
@@ -134,6 +135,44 @@ router.get('/case/:caseId', async (req, res) => {
     return res.json(response);
   } catch (err) {
     console.error('Officer case detail error:', err);
+    return res.status(500).json({ error: 'Internal server error.' });
+  }
+});
+
+/**
+ * GET /officer/case/:caseId/disclosure
+ * Return the court-approved identity disclosure for this case, if one exists.
+ * Only the assigned officer can see it, and only after the Disclosure Authority
+ * has approved (status === 'approved'). NEVER leaks the pairwiseId.
+ */
+router.get('/case/:caseId/disclosure', async (req, res) => {
+  try {
+    const grievance = await Case.findOne({ caseId: req.params.caseId });
+    if (!grievance) {
+      return res.status(404).json({ error: 'Case not found.' });
+    }
+    if (grievance.assignedOfficerId !== req.officer.officerId) {
+      return res.status(403).json({ error: 'Forbidden. Case assigned to a different officer.' });
+    }
+
+    // Most recent approved disclosure for this case (reveals minimal identity).
+    const disclosure = await DisclosureRequest.findOne({
+      caseId: req.params.caseId,
+      status: 'approved',
+    }).sort({ decidedAt: -1 });
+
+    if (!disclosure) {
+      return res.json({ approved: false, revealedEmail: null, courtOrderRef: null });
+    }
+
+    return res.json({
+      approved: true,
+      revealedEmail: disclosure.revealedEmail || null,
+      courtOrderRef: disclosure.courtOrderRef || null,
+      decidedAt: disclosure.decidedAt,
+    });
+  } catch (err) {
+    console.error('Officer disclosure lookup error:', err);
     return res.status(500).json({ error: 'Internal server error.' });
   }
 });

@@ -54,6 +54,9 @@ export default function OfficerCaseDetail() {
   const [clarificationContent, setClarificationContent] = useState("");
   const [officerToken, setOfficerToken] = useState<string>("");
 
+  // Court-authorized identity disclosure (revealed after Disclosure Authority approves)
+  const [disclosure, setDisclosure] = useState<{ revealedEmail: string; courtOrderRef: string; decidedAt: string } | null>(null);
+
   const fetchCase = useCallback(async (token: string) => {
     if (!caseId) return;
 
@@ -85,6 +88,19 @@ export default function OfficerCaseDetail() {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (remRes.ok) setReminders(await remRes.json());
+
+      // Court-authorized disclosure status (reveals identity only if approved).
+      const discRes = await fetch(`${apiUrl}/officer/case/${caseId}/disclosure`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (discRes.ok) {
+        const disc = await discRes.json();
+        setDisclosure(disc.approved ? {
+          revealedEmail: disc.revealedEmail,
+          courtOrderRef: disc.courtOrderRef,
+          decidedAt: disc.decidedAt,
+        } : null);
+      }
       
     } catch (err) {
       console.error("Failed to fetch case details:", err);
@@ -143,7 +159,9 @@ export default function OfficerCaseDetail() {
       if (res.ok) {
         setModalOpen(false);
         setJustification("");
-        alert("Request submitted. Pending court authorization.");
+        alert("Request submitted. Pending court authorization. The revealed identity will appear here once the Disclosure Authority approves.");
+        // Refresh so that if this request is already approved, the identity shows.
+        fetchCase(officerToken);
       } else {
         const err = await res.json();
         alert("Error: " + (err.error || "Failed to request disclosure"));
@@ -210,6 +228,35 @@ export default function OfficerCaseDetail() {
   return (
     <div className="max-w-4xl mx-auto w-full px-6 py-12 flex-1">
       <ProtectedBanner />
+
+      {disclosure && (
+        <div className="mb-6 p-5 bg-red-50 border-2 border-red-400 rounded-lg shadow-sm">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-2xl"></span>
+            <h2 className="font-bold text-red-700 uppercase tracking-wider text-lg">
+              Identity Disclosed (Court-Authorized)
+            </h2>
+          </div>
+          <p className="text-red-800 text-sm mb-3">
+            Identity revealed upon court order. This disclosure has been audit-logged.
+          </p>
+          <div className="bg-white border border-red-200 rounded-md p-4 font-mono text-sm space-y-2">
+            <p>
+              <span className="font-semibold">Citizen Email:</span>{" "}
+              <span className="text-lg font-bold text-red-700">{disclosure.revealedEmail}</span>
+            </p>
+            {disclosure.courtOrderRef && (
+              <p><span className="font-semibold">Court Order Ref:</span> {disclosure.courtOrderRef}</p>
+            )}
+            {disclosure.decidedAt && (
+              <p>
+                <span className="font-semibold">Approved At:</span>{" "}
+                {new Date(disclosure.decidedAt).toLocaleString()}
+              </p>
+            )}
+          </div>
+        </div>
+      )}
 
       <Card className="bg-[#FFFFFF] border-[#E5E7EB] shadow-sm mb-8">
         <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-6 border-b border-[#E5E7EB]">
