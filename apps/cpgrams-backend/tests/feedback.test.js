@@ -15,6 +15,15 @@ test('Redressal Feedback API', async (t) => {
   const pairwiseId = 'pw_feedback_test_citizen';
   const token = signOfficerToken({ officerId, name: 'Rajesh Kumar', department: 'PWD' });
 
+  t.after(async () => {
+    try {
+      await Case.deleteMany({ caseId });
+      await Feedback.deleteMany({ caseId });
+    } finally {
+      await mongoose.disconnect();
+    }
+  });
+
   await Case.deleteMany({ caseId });
   await Feedback.deleteMany({ caseId });
 
@@ -45,9 +54,5 @@ test('Redressal Feedback API', async (t) => {
     assert.equal(res.body.caseId, caseId);
     assert.equal(res.body.rating, 5);
     assert.equal(res.body.comment, 'Pothole was repaired within 24 hours. Excellent work!');
-  });
-
-  t.after(async () => {
-    await mongoose.disconnect();
   });
 });

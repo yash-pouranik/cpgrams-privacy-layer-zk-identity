@@ -13,7 +13,15 @@ test('Public Status Tracking & Audit History API', async (t) => {
   const rawPassword = 'test-pass-123';
   const pairwiseId = 'pw_test_citizen_status';
 
-  // Seed a test case
+  t.after(async () => {
+    try {
+      await Case.deleteMany({ caseId });
+    } finally {
+      await mongoose.disconnect();
+    }
+  });
+
+  // Seed test case
   await Case.deleteMany({ caseId });
   const hash = await bcrypt.hash(rawPassword, 10);
   await Case.create({
@@ -53,9 +61,5 @@ test('Public Status Tracking & Audit History API', async (t) => {
       .expect(200);
 
     assert.ok(Array.isArray(res.body));
-  });
-
-  t.after(async () => {
-    await mongoose.disconnect();
   });
 });

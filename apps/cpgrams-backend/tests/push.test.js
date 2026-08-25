@@ -9,12 +9,21 @@ const Case = require('../src/models/Case');
 
 test('External State/Ministry Push Grievance Web Service', async (t) => {
   const validApiKey = 'dev-push-key-12345';
+  const testSourcePortal = 'MP-CM-Helpline-Test';
+
+  t.after(async () => {
+    try {
+      await Case.deleteMany({ sourcePortal: testSourcePortal });
+    } finally {
+      await mongoose.disconnect();
+    }
+  });
 
   await t.test('POST /api/push/grievance rejects unauthenticated push requests', async () => {
     const res = await request(app)
       .post('/api/push/grievance')
       .send({
-        sourcePortal: 'MP-CM-Helpline',
+        sourcePortal: testSourcePortal,
         category: 'Roads & Highways',
         description: 'Road damage reported via state CM helpline',
         citizenPairwiseId: 'pw_mp_state_user_123'
@@ -29,7 +38,7 @@ test('External State/Ministry Push Grievance Web Service', async (t) => {
       .post('/api/push/grievance')
       .set('X-API-Key', validApiKey)
       .send({
-        sourcePortal: 'MP-CM-Helpline',
+        sourcePortal: testSourcePortal,
         sourceRefId: 'MP-2026-9988',
         category: 'Roads & Highways',
         description: 'Road damage reported via state CM helpline',
@@ -40,12 +49,5 @@ test('External State/Ministry Push Grievance Web Service', async (t) => {
     assert.ok(res.body.registrationId);
     assert.equal(res.body.status, 'assigned');
     assert.equal(res.body.assignedDepartment, 'PWD');
-
-    // Clean up
-    await Case.deleteMany({ caseId: res.body.registrationId });
-  });
-
-  t.after(async () => {
-    await mongoose.disconnect();
   });
 });

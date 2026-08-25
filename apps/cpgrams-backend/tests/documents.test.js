@@ -14,6 +14,15 @@ test('Document Upload & Management API', async (t) => {
   const officerId = 'PWD-001';
   const token = signOfficerToken({ officerId, name: 'Rajesh Kumar', department: 'PWD' });
 
+  t.after(async () => {
+    try {
+      await Case.deleteMany({ caseId });
+      await Document.deleteMany({ caseId });
+    } finally {
+      await mongoose.disconnect();
+    }
+  });
+
   // Ensure test case assigned to officer exists
   await Case.deleteMany({ caseId });
   await Document.deleteMany({ caseId });
@@ -60,9 +69,5 @@ test('Document Upload & Management API', async (t) => {
       .expect(403);
 
     assert.ok(res.body.error);
-  });
-
-  t.after(async () => {
-    await mongoose.disconnect();
   });
 });

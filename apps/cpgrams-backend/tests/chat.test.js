@@ -14,6 +14,15 @@ test('Masked Chat Communication API', async (t) => {
   const officerId = 'PWD-001';
   const token = signOfficerToken({ officerId, name: 'Rajesh Kumar', department: 'PWD' });
 
+  t.after(async () => {
+    try {
+      await Case.deleteMany({ caseId });
+      await Message.deleteMany({ caseId });
+    } finally {
+      await mongoose.disconnect();
+    }
+  });
+
   await Case.deleteMany({ caseId });
   await Message.deleteMany({ caseId });
 
@@ -56,9 +65,5 @@ test('Masked Chat Communication API', async (t) => {
 
     assert.ok(Array.isArray(res.body));
     assert.ok(res.body.length >= 1);
-  });
-
-  t.after(async () => {
-    await mongoose.disconnect();
   });
 });

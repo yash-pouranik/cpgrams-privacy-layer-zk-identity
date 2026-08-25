@@ -1,11 +1,17 @@
 'use strict';
 
+process.env.NODE_ENV = 'test';
+
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { sendOtp, verifyOtp } = require('../src/services/otp');
+const { sendOtp, verifyOtp, otpStore } = require('../src/services/otp');
 
 test('SSO OTP Service Tests', async (t) => {
-  await t.test('generates and verifies 6-digit OTP', async () => {
+  t.afterEach(() => {
+    otpStore.clear();
+  });
+
+  await t.test('generates and verifies 6-digit OTP in isolation', async () => {
     const email = 'rahul.sharma@example.com';
     const otp = await sendOtp(email);
     

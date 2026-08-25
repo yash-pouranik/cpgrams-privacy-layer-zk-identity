@@ -9,16 +9,24 @@ const Officer = require('../src/models/Officer');
 const { signOfficerToken, hashPassword } = require('../src/services/officerAuth');
 
 test('Officer Portal Authentication & Case Management API', async (t) => {
-  const officerId = 'PWD-001';
+  const testOfficerId = 'OFFICER-TEST-001';
   const password = 'Officer@123';
   let officerToken;
 
-  // Ensure test officer exists
+  t.after(async () => {
+    try {
+      await Officer.deleteMany({ officerId: testOfficerId });
+    } finally {
+      await mongoose.disconnect();
+    }
+  });
+
+  // Ensure test officer fixture exists
   await Officer.updateOne(
-    { officerId },
+    { officerId: testOfficerId },
     {
       $set: {
-        name: 'Rajesh Kumar',
+        name: 'Test Officer',
         department: 'PWD',
         level: 1,
         passwordHash: hashPassword(password),
@@ -31,7 +39,7 @@ test('Officer Portal Authentication & Case Management API', async (t) => {
   await t.test('POST /officer/login rejects incorrect password', async () => {
     const res = await request(app)
       .post('/officer/login')
-      .send({ officerId, password: 'wrong-password' })
+      .send({ officerId: testOfficerId, password: 'wrong-password' })
       .expect(401);
 
     assert.ok(res.body.error);
@@ -40,12 +48,12 @@ test('Officer Portal Authentication & Case Management API', async (t) => {
   await t.test('POST /officer/login authenticates and returns signed JWT token', async () => {
     const res = await request(app)
       .post('/officer/login')
-      .send({ officerId, password })
+      .send({ officerId: testOfficerId, password })
       .expect(200);
 
     assert.ok(res.body.token);
-    assert.equal(res.body.officer.officerId, officerId);
-    assert.equal(res.body.officer.name, 'Rajesh Kumar');
+    assert.equal(res.body.officer.officerId, testOfficerId);
+    assert.equal(res.body.officer.name, 'Test Officer');
     officerToken = res.body.token;
   });
 
@@ -55,7 +63,7 @@ test('Officer Portal Authentication & Case Management API', async (t) => {
       .set('Authorization', `Bearer ${officerToken}`)
       .expect(200);
 
-    assert.equal(res.body.officerId, officerId);
+    assert.equal(res.body.officerId, testOfficerId);
     assert.equal(res.body.department, 'PWD');
     assert.equal(res.body.passwordHash, undefined);
   });
@@ -75,9 +83,5 @@ test('Officer Portal Authentication & Case Management API', async (t) => {
       .expect(401);
 
     assert.ok(res.body.error);
-  });
-
-  t.after(async () => {
-    await mongoose.disconnect();
   });
 });

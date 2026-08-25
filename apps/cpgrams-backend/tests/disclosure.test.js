@@ -15,6 +15,15 @@ test('Disclosure Authority & Legal Workflow API', async (t) => {
   const token = signOfficerToken({ officerId, name: 'Rajesh Kumar', department: 'PWD' });
   const authorityToken = process.env.DISCLOSURE_AUTHORITY_SECRET || 'authority-secret-change-me';
 
+  t.after(async () => {
+    try {
+      await Case.deleteMany({ caseId });
+      await DisclosureRequest.deleteMany({ caseId });
+    } finally {
+      await mongoose.disconnect();
+    }
+  });
+
   await Case.deleteMany({ caseId });
   await DisclosureRequest.deleteMany({ caseId });
 
@@ -73,9 +82,5 @@ test('Disclosure Authority & Legal Workflow API', async (t) => {
       .expect(200);
 
     assert.equal(res.body.status, 'rejected');
-  });
-
-  t.after(async () => {
-    await mongoose.disconnect();
   });
 });
