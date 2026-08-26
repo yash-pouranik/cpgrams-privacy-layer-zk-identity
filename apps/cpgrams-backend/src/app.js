@@ -8,6 +8,7 @@ const multer = require('multer');
 const session = require('express-session');
 const connectDB = require('./config/db');
 const { UPLOADS_DIR } = require('./middleware/upload');
+const { AI_ENABLED } = require('./config/aiConfig');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -65,7 +66,16 @@ app.use('/', pushRoutes);          // handles /api/push/grievance
 
 // ---- Health check ----
 app.get('/health', (req, res) => {
-  res.json({ status: 'ok', service: 'CPGRAMS Backend', port: PORT });
+  const { pendingCount } = require('./ai/queue/grievanceQueue');
+  res.json({
+    status: 'ok',
+    service: 'CPGRAMS Backend',
+    port: PORT,
+    ai: {
+      enabled: AI_ENABLED,
+      pendingJobs: AI_ENABLED ? pendingCount() : 0,
+    },
+  });
 });
 
 // ---- Error handler ----
@@ -88,8 +98,15 @@ app.use((err, req, res, next) => {
 
 // ---- Start ----
 if (require.main === module) {
+  // Start AI Orchestrator worker BEFORE listening (so first grievance is covered)
+  if (AI_ENABLED) {
+    const { startWorker } = require('./ai/workers/grievanceIntelligence.worker');
+    startWorker();
+  }
+
   app.listen(PORT, () => {
     console.log(`CPGRAMS Backend running at http://localhost:${PORT}`);
+    console.log(`AI Analysis: ${AI_ENABLED ? 'ENABLED' : 'DISABLED'}`);
   });
 }
 

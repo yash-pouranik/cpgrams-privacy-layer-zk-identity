@@ -13,6 +13,8 @@ const { upload } = require('../middleware/upload');
 const { generateCaseId } = require('../services/caseId');
 const { autoAssign, getDepartment } = require('../services/autoAssign');
 const { findSimilarCases, MIN_QUERY_LENGTH } = require('../services/duplicateDetect');
+const { AI_ENABLED } = require('../config/aiConfig');
+const { enqueueAiAnalysis } = require('../ai/queue/grievanceQueue');
 
 const router = Router();
 
@@ -131,6 +133,13 @@ router.post('/', verifyToken, upload.array('files', 5), async (req, res) => {
       metadata: { category, department, assignedOfficerId: officer ? officer.officerId : null, sourcePortal, evidenceCount: finalEvidenceUrls.length },
     });
 
+    // ── Enqueue async AI analysis (non-blocking) ──────────────────────────
+    // The HTTP response is sent immediately; AI runs in the background.
+    // AI_ENABLED=false → skips entirely, zero impact on existing tests.
+    if (AI_ENABLED) {
+      enqueueAiAnalysis(caseId, { category, department });
+    }
+
     // Response — NEVER include pairwiseId
     return res.status(201).json({
       caseId: newCase.caseId,
@@ -140,6 +149,7 @@ router.post('/', verifyToken, upload.array('files', 5), async (req, res) => {
       assignedOfficerId: newCase.assignedOfficerId,
       createdAt: newCase.createdAt,
       registrationPassword: password,
+      aiAnalysis: AI_ENABLED ? 'QUEUED' : 'DISABLED',
     });
   } catch (err) {
     console.error('File grievance error:', err);
