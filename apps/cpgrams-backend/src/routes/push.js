@@ -5,6 +5,8 @@ const Case = require('../models/Case');
 const AuditLog = require('../models/AuditLog');
 const { generateCaseId } = require('../services/caseId');
 const { autoAssign, getDepartment } = require('../services/autoAssign');
+const { AI_ENABLED } = require('../config/aiConfig');
+const { enqueueAiAnalysis } = require('../ai/queue/grievanceQueue');
 
 const router = Router();
 
@@ -61,12 +63,19 @@ router.post('/api/push/grievance', verifyApiKey, async (req, res) => {
       metadata: { sourcePortal, sourceRefId, category, department, assignedOfficerId: officer ? officer.officerId : null }
     });
 
+    let aiAnalysis = 'DISABLED';
+    if (AI_ENABLED) {
+      const aiJob = await enqueueAiAnalysis(caseId, { category, department, sourcePortal });
+      aiAnalysis = aiJob ? 'QUEUED' : 'UNAVAILABLE';
+    }
+
     return res.status(201).json({
       registrationId: newCase.caseId,
       registrationPassword: rawPassword,
       status: newCase.status,
       assignedDepartment: newCase.department,
-      assignedOfficerId: newCase.assignedOfficerId
+      assignedOfficerId: newCase.assignedOfficerId,
+      aiAnalysis,
     });
   } catch (err) {
     console.error('Push grievance error:', err);

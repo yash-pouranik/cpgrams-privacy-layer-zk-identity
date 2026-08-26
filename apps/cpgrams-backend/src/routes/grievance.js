@@ -136,8 +136,10 @@ router.post('/', verifyToken, upload.array('files', 5), async (req, res) => {
     // ── Enqueue async AI analysis (non-blocking) ──────────────────────────
     // The HTTP response is sent immediately; AI runs in the background.
     // AI_ENABLED=false → skips entirely, zero impact on existing tests.
+    let aiAnalysis = 'DISABLED';
     if (AI_ENABLED) {
-      enqueueAiAnalysis(caseId, { category, department });
+      const aiJob = await enqueueAiAnalysis(caseId, { category, department });
+      aiAnalysis = aiJob ? 'QUEUED' : 'UNAVAILABLE';
     }
 
     // Response — NEVER include pairwiseId
@@ -149,7 +151,7 @@ router.post('/', verifyToken, upload.array('files', 5), async (req, res) => {
       assignedOfficerId: newCase.assignedOfficerId,
       createdAt: newCase.createdAt,
       registrationPassword: password,
-      aiAnalysis: AI_ENABLED ? 'QUEUED' : 'DISABLED',
+      aiAnalysis,
     });
   } catch (err) {
     console.error('File grievance error:', err);

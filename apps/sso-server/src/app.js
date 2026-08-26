@@ -40,8 +40,15 @@ app.get('/health', (req, res) => {
 
 // ---- Start ----
 if (require.main === module) {
-  app.listen(PORT, () => {
+  const server = app.listen(PORT, () => {
     console.log(`CivID SSO running at http://localhost:${PORT}`);
+  });
+  // Keep the HTTP listener referenced so the standalone process cannot exit
+  // cleanly immediately after startup under npm/nodemon/concurrently.
+  server.ref();
+  server.on('error', (err) => {
+    console.error('CivID SSO server error:', err.message);
+    process.exitCode = 1;
   });
 }
 
