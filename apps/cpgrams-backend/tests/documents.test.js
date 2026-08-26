@@ -1,5 +1,7 @@
 'use strict';
 
+process.env.AI_ENABLED = 'false';
+
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const request = require('supertest');
@@ -7,6 +9,7 @@ const mongoose = require('mongoose');
 const app = require('../src/app');
 const Case = require('../src/models/Case');
 const Document = require('../src/models/Document');
+const AiCaseAnalysis = require('../src/models/AiCaseAnalysis');
 const { signOfficerToken } = require('../src/services/officerAuth');
 
 test('Document Upload & Management API', async (t) => {
@@ -18,6 +21,7 @@ test('Document Upload & Management API', async (t) => {
     try {
       await Case.deleteMany({ caseId });
       await Document.deleteMany({ caseId });
+      await AiCaseAnalysis.deleteMany({ caseId });
     } finally {
       await mongoose.disconnect();
     }
@@ -25,7 +29,8 @@ test('Document Upload & Management API', async (t) => {
 
   // Ensure test case assigned to officer exists
   await Case.deleteMany({ caseId });
-  await Document.deleteMany({ caseId });
+    await Document.deleteMany({ caseId });
+    await AiCaseAnalysis.deleteMany({ caseId });
 
   await Case.create({
     caseId,
@@ -69,5 +74,45 @@ test('Document Upload & Management API', async (t) => {
       .expect(403);
 
     assert.ok(res.body.error);
+  });
+
+  await t.test('GET /grievance/:caseId/documents/:docId/analysis returns Agent 2 output', async () => {
+    const document = await Document.findOne({ caseId });
+    await AiCaseAnalysis.create({
+      caseId,
+      status: 'completed',
+      documentAnalysis: [{
+        documentId: String(document._id),
+        documentType: 'Work Order',
+        language: 'en',
+        isRelevant: true,
+        relevanceScore: 0.93,
+        supportsComplaint: true,
+        supportingClaims: ['Road repair contract is listed.'],
+        extractedText: 'Contractor: ABC Infra',
+        detectedEntities: { contractor: 'ABC Infra', project: null, amount: null, date: null },
+        flags: [],
+        confidence: 0.91,
+      }],
+    });
+
+    const res = await request(app)
+      .get(`/grievance/${caseId}/documents/${document._id}/analysis`)
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    assert.equal(res.body.status, 'completed');
+    assert.equal(res.body.analysis.documentType, 'Work Order');
+    assert.equal(res.body.analysis.detectedEntities.contractor, 'ABC Infra');
+    assert.match(res.body.authenticityNotice, /does not establish document authenticity/);
+  });
+
+  await t.test('GET document analysis rejects an unassigned officer', async () => {
+    const document = await Document.findOne({ caseId });
+    const otherToken = signOfficerToken({ officerId: 'HEALTH-001', name: 'Dr. Roy', department: 'Health' });
+    await request(app)
+      .get(`/grievance/${caseId}/documents/${document._id}/analysis`)
+      .set('Authorization', `Bearer ${otherToken}`)
+      .expect(403);
   });
 });

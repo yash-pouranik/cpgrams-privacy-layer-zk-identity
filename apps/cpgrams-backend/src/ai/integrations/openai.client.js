@@ -30,7 +30,7 @@ function getClient() {
  * @param {object} opts
  * @param {'fast'|'reasoning'} opts.tier   - which model tier to use
  * @param {string}             opts.system - system prompt
- * @param {string}             opts.user   - user message
+ * @param {string|Array}        opts.user   - user message or multimodal content blocks
  * @param {object}             opts.schema - JSON Schema for response_format (optional)
  * @param {string}             opts.mockResponse - fallback when MOCK_AI=true
  * @returns {Promise<{output:object, model:string, latencyMs:number, tokensUsed:object, cost:number}>}

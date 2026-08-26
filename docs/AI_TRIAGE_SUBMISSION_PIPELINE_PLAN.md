@@ -15,7 +15,8 @@ current repository status is:
 | Phase 1 AI foundation | Complete: Redis/BullMQ implementation is present; live Redis smoke test requires Docker running |
 | Phase 2 Agent 1 triage | Complete: structured triage, deterministic fallback, worker persistence, AI-aware routing, live OpenAI verification, and focused tests are implemented |
 | Phase 3: Agent 3 semantic quality | Core implementation complete: embeddings, Pinecone adapter, quality agent, worker integration, citizen/officer visibility, live quality output, provider compatibility fixes, and focused tests are implemented; hosted multi-case Pinecone duplicate retrieval should still be re-verified |
-| Phase 4-8 | Not started |
+| Phase 4: Agent 2 document intelligence | In progress: document agent, PDF extraction, multimodal image input, worker integration, authenticated per-document analysis API, and focused tests are implemented; production OCR/vision verification and officer document-analysis UI remain |
+| Phase 5-8 | Not started |
 
 The implementation intentionally keeps grievance creation synchronous and runs AI
 processing asynchronously. AI failures must never block the citizen submission path.
@@ -371,7 +372,7 @@ Tavily has a REST API — no SDK needed, use native `fetch`.
 
 ### New Files
 
-#### [NEW] `apps/cpgrams-backend/src/ai/agents/documents/document.agent.js`
+#### [NEW] `apps/cpgrams-backend/src/ai/agents/documents/document.agent.js` ✅
 - Input: `{ caseId, documentId, filePath, mimeType, originalName, triageContext }`
 - For images/photos: OpenAI Vision API (`gpt-5.6-luna`) — scene understanding, text extraction, document type detection
 - For PDFs: Text extraction first, then OpenAI analysis
@@ -401,8 +402,14 @@ Tavily has a REST API — no SDK needed, use native `fetch`.
   ```
 - **Explicit limitation**: Agent classifies relevance and extracts information. It does NOT determine authenticity — that remains the officer's legal responsibility.
 
-#### [NEW] `apps/cpgrams-backend/src/ai/agents/documents/document.schema.js`
-#### [NEW] `apps/cpgrams-backend/src/ai/agents/documents/document.prompt.js`
+#### [NEW] `apps/cpgrams-backend/src/ai/agents/documents/document.schema.js` ✅
+#### [NEW] `apps/cpgrams-backend/src/ai/agents/documents/document.prompt.js` ✅
+
+Implementation notes:
+- `pdf-parse` handles machine-readable PDF text extraction, capped at 12,000 characters per document.
+- Image inputs use OpenAI multimodal `image_url` content blocks; PDFs send extracted text to the structured model.
+- `MOCK_AI=true` / test mode produces deterministic, limitation-aware fixtures.
+- Missing or malformed PDF parsing degrades to bounded printable-text extraction so one document cannot fail the complete grievance pipeline.
 
 ### Integration
 - Worker orchestrator runs Agent 2 for each document attached to the case

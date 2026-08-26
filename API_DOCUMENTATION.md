@@ -138,6 +138,9 @@ Core grievance redressal system. Operates pseudonymous case management, masked c
 - **`GET /officer/case/:caseId/documents/:docId/download`** (Officer)
   - **Headers:** `Authorization: Bearer <officer_token>` or `?token=<jwt>`
   - **Description:** Streams file to officer portal.
+- **`GET /grievance/:caseId/documents/:docId/analysis`** (Citizen or assigned Officer)
+  - **Headers:** `Authorization: Bearer <citizen_token>` or `Authorization: Bearer <officer_token>`
+  - **Description:** Returns Agent 2 document classification, relevance, extracted entities, supporting claims, and the mandatory authenticity limitation. Returns `analysis: null` while background processing is queued or incomplete.
 
 ---
 
