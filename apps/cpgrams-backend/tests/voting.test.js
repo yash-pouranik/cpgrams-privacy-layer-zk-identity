@@ -65,9 +65,13 @@ test('Duplicate Detection & Issue Voting System', async (t) => {
   });
 
   t.after(async () => {
-    await Case.deleteMany({ caseId: { $in: [CASE_ID, 'CPG-VOTE02', 'CPG-VOTE03'] } });
-    await CaseFollow.deleteMany({ caseId: { $in: [CASE_ID, 'CPG-VOTE02', 'CPG-VOTE03'] } });
-    await AuditLog.deleteMany({ targetCaseId: { $in: [CASE_ID, 'CPG-VOTE02', 'CPG-VOTE03'] } });
+    try {
+      await Case.deleteMany({ caseId: { $in: [CASE_ID, 'CPG-VOTE02', 'CPG-VOTE03'] } });
+      await CaseFollow.deleteMany({ caseId: { $in: [CASE_ID, 'CPG-VOTE02', 'CPG-VOTE03'] } });
+      await AuditLog.deleteMany({ targetCaseId: { $in: [CASE_ID, 'CPG-VOTE02', 'CPG-VOTE03'] } });
+    } finally {
+      await mongoose.disconnect();
+    }
   });
 
   await t.test('tokenize extracts significant words and strips stop words', () => {
