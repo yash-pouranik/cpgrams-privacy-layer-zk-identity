@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>CivID — Verify OTP</title>
+  <title>CivID - Verify OTP</title>
   <link href="https://cdn.jsdelivr.net/npm/daisyui@5" rel="stylesheet" type="text/css" />
   <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
 </head>
@@ -11,8 +11,12 @@
   <div class="hero min-h-screen bg-base-200">
     <div class="hero-content flex-col w-full max-w-md">
 
-      <div class="text-center mb-4">
-        <h1 class="text-4xl font-bold tracking-tight">Civ<span class="text-primary">ID</span></h1>
+      <div class="text-center mb-4 w-full">
+        <div class="text-xs text-base-content/50 max-w-md mx-auto px-2">
+          This OTP screen is a demo of the mock data only - the code shown is NOT a real government SMS.
+          It is displayed only so you can test the application.
+        </div>
+        <h1 class="text-4xl font-bold tracking-tight mt-2">Civ<span class="text-primary">ID</span></h1>
         <p class="text-base-content/60 mt-2">One-Time Verification</p>
       </div>
 
@@ -22,17 +26,6 @@
           <p class="text-center text-base-content/60 text-sm">
             OTP sent to <strong><%= maskedEmail %></strong>
           </p>
-          <div class="bg-primary/5 border border-primary/20 rounded-lg p-2 mt-2 text-center text-xs text-primary font-medium">
-            Demo verification code displayed below for convenience
-          </div>
-
-          <% if (otp) { %>
-          <div class="mt-3 rounded-2xl border-2 border-primary bg-base-100 shadow-lg p-4 text-center">
-            <p class="text-xs text-base-content/50 uppercase tracking-wider font-semibold">Your code</p>
-            <p class="text-4xl font-black tracking-[0.3em] text-primary mt-1 select-all"><%= otp %></p>
-            <p class="text-xs text-base-content/50 mt-2">Valid for 5 minutes • consume it below</p>
-          </div>
-          <% } %>
 
           <% if (error) { %>
             <div role="alert" class="alert alert-error alert-soft mt-2">
@@ -45,6 +38,7 @@
 
             <label class="floating-label w-full">
               <input
+                id="otp-input"
                 type="text"
                 name="otp"
                 placeholder="OTP"
@@ -72,7 +66,53 @@
         </div>
       </div>
 
+      <% if (otp) { %>
+      <div class="card bg-base-100 w-full shadow-xl mt-4 border-2 border-primary/30">
+        <div class="card-body text-center py-4">
+          <p class="text-xs text-base-content/50 uppercase tracking-wider font-semibold">Demo test code</p>
+          <p id="demo-otp" class="text-4xl font-black tracking-[0.3em] text-primary select-all"><%= otp %></p>
+          <p class="text-xs text-base-content/50">Sent to <strong><%= maskedEmail %></strong> - valid for 5 minutes</p>
+          <div class="flex gap-2 justify-center mt-2">
+            <button type="button" data-copy-otp class="btn btn-outline btn-primary btn-sm gap-2" onclick="copyOtp(this)">
+              Copy
+            </button>
+            <button type="button" class="btn btn-primary btn-sm" onclick="fillOtp()">Fill in OTP</button>
+          </div>
+        </div>
+      </div>
+      <% } %>
+
     </div>
   </div>
+
+  <script>
+    function copyOtp(btn) {
+      var code = document.getElementById('demo-otp').innerText.trim();
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(code);
+        } else {
+          var temp = document.createElement('textarea');
+          temp.value = code;
+          document.body.appendChild(temp);
+          temp.select();
+          document.execCommand('copy');
+          document.body.removeChild(temp);
+        }
+        var old = btn.innerHTML;
+        btn.innerHTML = 'Copied!';  
+        setTimeout(function(){ btn.innerHTML = old; }, 1600);
+      } catch (e) {}
+    }
+
+    function fillOtp() {
+      var code = document.getElementById('demo-otp').innerText.trim();
+      var input = document.getElementById('otp-input');
+      if (input && code) {
+        input.value = code;
+        input.focus();
+      }
+    }
+  </script>
 </body>
 </html>
