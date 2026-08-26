@@ -1,12 +1,12 @@
-# Implementation Plan: Grievance Intelligence Platform
+# Implementation Plan: Drishti AI — Autonomous Grievance Intelligence Platform
 
-> **Product Thesis**: India has 1.4 billion citizens and zero infrastructure where a complaint is automatically understood, verified against public evidence, deduplicated across semantic meaning, and routed to the exact right officer — all while the citizen's identity remains cryptographically sealed. This is that infrastructure.
+> **Product Thesis**: India has 1.4 billion citizens and zero infrastructure where a complaint is automatically understood, verified against public evidence, deduplicated across semantic meaning, and routed to the exact right officer — all while the citizen's identity remains cryptographically sealed. **Drishti AI** (दृष्टि) is that autonomous intelligence layer.
 
 ---
 
 ## The Architecture in One Sentence
 
-> The citizen submits the grievance once. The system does the investigation groundwork automatically. The officer receives a pre-analyzed, evidence-enriched, priority-scored intelligence brief. Every officer action is measured and publicly accountable.
+> The citizen submits the grievance once. **Drishti AI** executes autonomous investigation groundwork in the background. The officer receives a pre-analyzed, evidence-enriched, priority-scored intelligence brief. Every officer action is measured and publicly accountable.
 
 ---
 
@@ -19,6 +19,20 @@
 | **Frontend** | 12 pages (Landing, Auth Callback, Dashboard, 5-Step Grievance Wizard, Case Detail, Officer Login, Officer Dashboard, Officer Case Detail, Disclosure Console, Public Status), 22 components | Next.js 16 + React 19 + Tailwind v4 | Build clean (exit 0) |
 
 **Critical architectural guarantee already enforced**: CivID SSO (MySQL) is completely isolated from CPGRAMS (MongoDB). AI layer will NEVER touch SSO. Zero PII crosses the privacy horizon.
+
+---
+
+## Drishti AI Agent Suite (दृष्टि)
+
+| Agent Name | Code Identifier | Role & Responsibilities | Model / Provider |
+|---|---|---|---|
+| **Drishti-Orchestrator** | `worker.js` | Master workflow manager, concurrency, state transitions | Node.js EventEmitter |
+| **Drishti-Triage** | Agent 1 (`triage`) | Urgency score, emotion/sentiment, spam detection, category routing | `gpt-5.6-luna` |
+| **Drishti-Vision** | Agent 2 (`document`) | Multimodal OCR, bill/PDF validation, mismatch alerts | `gpt-5.6-luna` (Vision) |
+| **Drishti-Cluster** | Agent 3 (`quality`) | Duplicate detection, semantic quality, vector RAG | Pinecone + `text-embedding-3-small` |
+| **Drishti-Evidence** | Agent 5 (`evidence`) | Live OSINT web corroboration, gazettes & local news search | Tavily REST API |
+| **Drishti-Route** | Agent 4 (`assignment`) | Workload-balanced officer assignment recommendations | Algorithmic + `gpt-5.6-luna` |
+| **Drishti-Brief** | `briefGenerator` | Synthesized 3-bullet executive action brief for IAS officers | `gpt-5.6-luna` (Reasoning) |
 
 ---
 
