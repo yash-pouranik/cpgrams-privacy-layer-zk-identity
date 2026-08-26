@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { StatusBadge } from "@/components/StatusBadge";
-import { Search, History, Clock, CheckCircle, ShieldCheck } from "lucide-react";
+import { Search, History, Clock, CheckCircle, ShieldCheck, Loader2 } from "lucide-react";
 
 interface StatusData {
   caseId: string;
@@ -26,7 +27,8 @@ interface HistoryItem {
   createdAt: string;
 }
 
-export default function StatusPage() {
+function StatusContent() {
+  const searchParams = useSearchParams();
   const [caseId, setCaseId] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -35,6 +37,41 @@ export default function StatusPage() {
   
   const [historyLoading, setHistoryLoading] = useState(false);
   const [history, setHistory] = useState<HistoryItem[] | null>(null);
+
+  // Auto-check when page is reached via URL query params (/status?caseId=...&password=...)
+  useEffect(() => {
+    const qCase = searchParams.get("caseId");
+    const qPwd = searchParams.get("password");
+    if (!qCase || !qPwd) return;
+    setCaseId(qCase);
+    setPassword(qPwd);
+
+    const runAutoCheck = async () => {
+      setLoading(true);
+      setError(null);
+      setStatusData(null);
+      setHistory(null);
+      try {
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+        const res = await fetch(`${apiUrl}/status/check`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ caseId: qCase.trim().toUpperCase(), registrationPassword: qPwd.trim() }),
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.error || "Case ID or Registration/Tracking Password not found");
+        }
+        const data = await res.json();
+        setStatusData(data);
+      } catch (err: any) {
+        setError(err.message || "Failed to retrieve status.");
+      } finally {
+        setLoading(false);
+      }
+    };
+    runAutoCheck();
+  }, [searchParams]);
 
   const handleCheck = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -50,7 +87,10 @@ export default function StatusPage() {
       const res = await fetch(`${apiUrl}/status/check`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ caseId: caseId.trim().toUpperCase(), registrationPassword: password.trim() }),
+        body: JSON.stringify({
+          caseId: caseId.trim().toUpperCase(),
+          registrationPassword: password.trim()
+        }),
       });
 
       if (!res.ok) {
@@ -61,24 +101,29 @@ export default function StatusPage() {
       const data = await res.json();
       setStatusData(data);
     } catch (err: any) {
-      setError(err.message || "Failed to retrieve status.");
+      setError(err.message || "Failed to retrieve status. Please check your credentials.");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleViewHistory = async () => {
-    if (!statusData || !password) return;
+  const handleFetchHistory = async () => {
+    if (!caseId || !password) return;
+
     setHistoryLoading(true);
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
-      const res = await fetch(`${apiUrl}/status/${statusData.caseId}/history?password=${encodeURIComponent(password.trim())}`);
-      if (res.ok) {
-        const data = await res.json();
-        setHistory(Array.isArray(data) ? data : []);
+      const res = await fetch(`${apiUrl}/status/${caseId.trim().toUpperCase()}/history?password=${encodeURIComponent(password.trim())}`);
+      
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || "Failed to fetch timeline history");
       }
-    } catch (err) {
-      console.error(err);
+
+      const data = await res.json();
+      setHistory(data);
+    } catch (err: any) {
+      setError(err.message || "Could not retrieve audit trail.");
     } finally {
       setHistoryLoading(false);
     }
@@ -87,86 +132,111 @@ export default function StatusPage() {
   return (
     <div className="max-w-2xl mx-auto w-full px-6 py-12 flex-1">
       <div className="text-center mb-8">
-        <div className="inline-flex items-center justify-center p-3 bg-indigo-50 border border-indigo-100 rounded-2xl mb-3 text-[#5E6AD2]">
-          <Search className="w-8 h-8" />
+        <div className="inline-flex p-3 rounded-full bg-indigo-50 text-[#5E6AD2] mb-3">
+          <ShieldCheck className="w-8 h-8" />
         </div>
-        <h1 className="text-2xl font-bold text-[#111827]">Track Grievance Status</h1>
+        <h1 className="text-2xl font-bold text-[#111827]">Public Grievance Status Tracker</h1>
         <p className="text-sm text-[#6B7280] mt-1">
-          Check live progress of your registered grievance without logging in.
+          Check the real-time progress of your complaint without logging into SSO.
         </p>
       </div>
 
-      <Card className="bg-[#FFFFFF] border-[#E5E7EB] shadow-sm mb-8">
-        <CardHeader className="pb-4 border-b border-[#E5E7EB]">
-          <CardTitle className="text-lg text-[#111827]">Public Status Lookup</CardTitle>
-          <CardDescription className="text-xs text-[#6B7280]">
-            Enter your Case Registration ID (e.g. CPG-XXXXXX) and unique registration password.
+      <Card className="bg-white border-[#E5E7EB] shadow-sm mb-6">
+        <CardHeader>
+          <CardTitle className="text-base font-semibold">Track by Reference</CardTitle>
+          <CardDescription className="text-xs">
+            Enter your Case Registration ID (e.g. CPG-A1B2C3) and your Registration / Tracking Password.
           </CardDescription>
         </CardHeader>
-        <CardContent className="pt-6">
+        <CardContent>
           <form onSubmit={handleCheck} className="space-y-4">
             <div className="space-y-2">
-              <label className="text-xs font-semibold uppercase tracking-wider text-[#374151]">Registration / Case ID</label>
-              <Input 
-                value={caseId} 
-                onChange={(e) => setCaseId(e.target.value)} 
-                placeholder="e.g. CPG-A1B2C3" 
-                className="bg-[#F9FAFB] uppercase font-mono border-[#E5E7EB]"
-                required 
+              <label className="text-xs font-semibold text-[#111827]">Case Registration ID</label>
+              <Input
+                placeholder="CPG-XXXXXX"
+                value={caseId}
+                onChange={(e) => setCaseId(e.target.value)}
+                className="font-mono uppercase bg-[#F9FAFB] border-[#E5E7EB]"
+                required
               />
             </div>
-            
+
             <div className="space-y-2">
-              <label className="text-xs font-semibold uppercase tracking-wider text-[#374151]">Registration Password</label>
-              <Input 
-                type="password" 
-                value={password} 
-                onChange={(e) => setPassword(e.target.value)} 
-                placeholder="Enter 8-character password" 
-                className="bg-[#F9FAFB] border-[#E5E7EB]"
-                required 
+              <label className="text-xs font-semibold text-[#111827]">Registration / Tracking Password</label>
+              <Input
+                type="text"
+                placeholder="8-character alphanumeric code"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="font-mono bg-[#F9FAFB] border-[#E5E7EB]"
+                required
               />
             </div>
 
             {error && (
-              <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-xs rounded-md">
+              <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-xs rounded-lg">
                 {error}
               </div>
             )}
 
-            <Button type="submit" disabled={loading} className="w-full bg-[#5E6AD2] hover:bg-[#4F5BC0] text-white">
-              {loading ? "Searching..." : "Track Grievance Status"}
+            <Button
+              type="submit"
+              disabled={loading || !caseId || !password}
+              className="w-full bg-[#5E6AD2] hover:bg-[#4F5BC0] text-white flex items-center justify-center gap-2"
+            >
+              <Search className="w-4 h-4" />
+              {loading ? "Verifying Credentials..." : "Track Status"}
             </Button>
           </form>
         </CardContent>
       </Card>
 
       {statusData && (
-        <Card className="bg-[#FFFFFF] border-[#E5E7EB] shadow-sm">
-          <CardHeader className="flex flex-row items-center justify-between pb-4 border-b border-[#E5E7EB]">
+        <Card className="bg-white border-[#E5E7EB] shadow-md animate-in fade-in">
+          <CardHeader className="flex flex-row items-center justify-between pb-3 border-b border-[#E5E7EB]">
             <div>
-              <span className="font-mono text-2xl font-bold text-[#5E6AD2]">{statusData.caseId}</span>
-              <p className="text-xs text-[#6B7280] mt-0.5">
-                Registered on {new Date(statusData.createdAt).toLocaleDateString()}
-              </p>
+              <span className="text-xs text-[#6B7280] font-mono">CASE ID</span>
+              <div className="text-xl font-bold font-mono text-[#5E6AD2]">{statusData.caseId}</div>
             </div>
             <StatusBadge status={statusData.status} />
           </CardHeader>
-          
-          <CardContent className="pt-6 space-y-4">
-            <div className="grid grid-cols-2 gap-4 bg-[#F9FAFB] p-4 rounded-xl border border-[#E5E7EB]">
+          <CardContent className="pt-4 space-y-4">
+            <div className="grid grid-cols-2 gap-4 text-xs">
               <div>
-                <p className="text-xs font-semibold text-[#6B7280] uppercase tracking-wider">Category</p>
-                <p className="font-medium text-[#111827] mt-1">{statusData.category}</p>
+                <span className="text-[#6B7280] block mb-1">Category</span>
+                <Badge variant="secondary" className="bg-[#E5E7EB] text-[#111827] font-medium">
+                  {statusData.category}
+                </Badge>
               </div>
+              {statusData.department && (
+                <div>
+                  <span className="text-[#6B7280] block mb-1">Assigned Department</span>
+                  <span className="font-semibold text-[#111827]">{statusData.department}</span>
+                </div>
+              )}
               <div>
-                <p className="text-xs font-semibold text-[#6B7280] uppercase tracking-wider">Assigned Department</p>
-                <p className="font-medium text-[#111827] mt-1">{statusData.department || "Under Nodal Review"}</p>
+                <span className="text-[#6B7280] block mb-1">Registration Date</span>
+                <span className="text-[#111827] flex items-center gap-1 font-mono">
+                  <Clock className="w-3 h-3 text-[#6B7280]" />
+                  {new Date(statusData.createdAt).toLocaleDateString("en-IN", {
+                    year: "numeric",
+                    month: "short",
+                    day: "numeric",
+                    hour: "2-digit",
+                    minute: "2-digit"
+                  })}
+                </span>
               </div>
             </div>
-            
+
             {!history && (
-              <Button onClick={handleViewHistory} disabled={historyLoading} variant="outline" className="w-full mt-2 flex items-center justify-center gap-1.5 border-[#E5E7EB]">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleFetchHistory}
+                disabled={historyLoading}
+                className="w-full mt-4 text-xs border-[#5E6AD2] text-[#5E6AD2] hover:bg-indigo-50 flex items-center justify-center gap-2"
+              >
                 <History className="w-4 h-4 text-[#5E6AD2]" />
                 {historyLoading ? "Loading Audit Timeline..." : "View Timeline History"}
               </Button>
@@ -209,5 +279,17 @@ export default function StatusPage() {
         </Card>
       )}
     </div>
+  );
+}
+
+export default function StatusPage() {
+  return (
+    <Suspense fallback={
+      <div className="max-w-2xl mx-auto w-full px-6 py-12 flex items-center justify-center">
+        <Loader2 className="w-6 h-6 animate-spin text-[#5E6AD2]" />
+      </div>
+    }>
+      <StatusContent />
+    </Suspense>
   );
 }

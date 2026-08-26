@@ -44,6 +44,22 @@ async function verifyToken(req, res, next) {
       return res.status(401).json({ error: 'Authentication required. No token provided.' });
     }
 
+    // ---- TEST-ONLY BYPASS ----
+    // In NODE_ENV=test with TEST_AUTH_SECRET set, accept a locally-signed HS256
+    // token carrying { sub: pairwiseId, test: true }. This lets API tests run
+    // self-contained without a live CivID SSO server. Never active in dev/prod.
+    if (process.env.NODE_ENV === 'test' && process.env.TEST_AUTH_SECRET) {
+      try {
+        const testDecoded = jwt.verify(token, process.env.TEST_AUTH_SECRET);
+        if (testDecoded && testDecoded.sub && testDecoded.test === true) {
+          req.citizen = { pairwiseId: testDecoded.sub };
+          return next();
+        }
+      } catch {
+        /* not a test token — fall through to real OIDC verification */
+      }
+    }
+
     const decodedHeader = jwt.decode(token, { complete: true });
     if (!decodedHeader || !decodedHeader.header || !decodedHeader.header.kid) {
       return res.status(401).json({ error: 'Invalid token format or missing kid.' });

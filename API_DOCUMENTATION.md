@@ -100,6 +100,13 @@ Core grievance redressal system. Operates pseudonymous case management, masked c
   - **Description:** Lodges grievance under Pairwise ID. Generates Case ID, bcrypt-hashed 8-char Registration Password, creates `Document` records, auto-assigns nodal officer, and sets status to `received`.
 - **`GET /grievance/my`**
   - **Description:** Retrieves all grievances filed by the authenticated citizen.
+- **`GET /grievance/suggestions`**
+  - **Query:** `?category=Roads%20%26%20Highways&q=description_text`
+  - **Description:** StackOverflow-style duplicate detection. Scans recent open cases within 90 days matching category and keyword overlap. Returns `{ suggestions: [], ownDuplicate: null }`.
+- **`POST /grievance/:caseId/vote`**
+  - **Description:** Citizen upvotes an existing issue to boost crowd urgency. Mints and returns a private tracking password for the voter `{ votes, trackingCaseId, trackingPassword }`.
+- **`GET /grievance/followed`**
+  - **Description:** Retrieves all cases the authenticated citizen has upvoted/followed, including their personal tracking passwords.
 - **`GET /grievance/:caseId`**
   - **Description:** Retrieves full case details (stripped of `pairwiseId`) including Action Taken Report (ATR) remarks and First Appeal data.
 - **`POST /grievance/:caseId/appeal`**

@@ -4,8 +4,25 @@ const { Router } = require('express');
 const bcrypt = require('bcryptjs');
 const Case = require('../models/Case');
 const AuditLog = require('../models/AuditLog');
+const CaseFollow = require('../models/CaseFollow');
 
 const router = Router();
+
+/**
+ * Validate that `submittedPassword` grants read/status access to `grievance`.
+ * Accepts EITHER the original filer's registration password (bcrypt-hashed on
+ * the case) OR a voter's tracking password (stored plaintext on CaseFollow).
+ */
+async function validateAccess(grievance, submittedPassword) {
+  // 1) Original filer's one-time password.
+  if (grievance.registrationPassword) {
+    const isOwnerMatch = await bcrypt.compare(submittedPassword, grievance.registrationPassword);
+    if (isOwnerMatch) return true;
+  }
+  // 2) Any voter who followed this case with their own tracking password.
+  const follows = await CaseFollow.find({ caseId: grievance.caseId }).lean();
+  return follows.some((f) => f.trackingPassword === submittedPassword);
+}
 
 /**
  * POST /status/check
@@ -19,12 +36,12 @@ router.post('/status/check', async (req, res) => {
     }
 
     const grievance = await Case.findOne({ caseId });
-    if (!grievance || !grievance.registrationPassword) {
+    if (!grievance) {
       return res.status(401).json({ error: 'Invalid credentials or case not found.' });
     }
 
-    const isMatch = await bcrypt.compare(registrationPassword, grievance.registrationPassword);
-    if (!isMatch) {
+    const hasAccess = await validateAccess(grievance, registrationPassword);
+    if (!hasAccess) {
       return res.status(401).json({ error: 'Invalid credentials or case not found.' });
     }
 
@@ -55,12 +72,12 @@ router.get('/status/:caseId/history', async (req, res) => {
     }
 
     const grievance = await Case.findOne({ caseId });
-    if (!grievance || !grievance.registrationPassword) {
+    if (!grievance) {
       return res.status(401).json({ error: 'Invalid credentials or case not found.' });
     }
 
-    const isMatch = await bcrypt.compare(password, grievance.registrationPassword);
-    if (!isMatch) {
+    const hasAccess = await validateAccess(grievance, password);
+    if (!hasAccess) {
       return res.status(401).json({ error: 'Invalid credentials or case not found.' });
     }
 

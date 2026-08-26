@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -92,6 +92,21 @@ export default function NewGrievancePage() {
   const [captchaNum2, setCaptchaNum2] = useState(7);
   const [captchaAnswer, setCaptchaAnswer] = useState("");
 
+  // Duplicate detection & issue voting (StackOverflow-style)
+  const [suggestions, setSuggestions] = useState<
+    { caseId: string; excerpt: string; votes: number; status: string }[]
+  >([]);
+  const [suggestionsLoading, setSuggestionsLoading] = useState(false);
+  const [votingCaseId, setVotingCaseId] = useState<string | null>(null);
+  const [suggestedVoted, setSuggestedVoted] = useState(false);
+  const [ownDuplicate, setOwnDuplicate] = useState<{
+    caseId: string;
+    excerpt: string;
+    votes: number;
+    status: string;
+  } | null>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   // Submit states
   const [loading, setLoading] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -99,6 +114,90 @@ export default function NewGrievancePage() {
   const [copied, setCopied] = useState(false);
   
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+
+  // Debounced duplicate-detection suggestions (fires ~600ms after user pauses typing)
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    const trimmed = description.trim();
+    if (!category || trimmed.length < 20) {
+      setSuggestions([]);
+      setOwnDuplicate(null);
+      return;
+    }
+    const token = sessionStorage.getItem("token");
+    if (!token) return;
+
+    debounceRef.current = setTimeout(async () => {
+      try {
+        setSuggestionsLoading(true);
+        const res = await fetch(
+          `${apiUrl}/grievance/suggestions?category=${encodeURIComponent(category)}&q=${encodeURIComponent(trimmed)}`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        if (!res.ok) return;
+        const data = await res.json();
+        setSuggestions(Array.isArray(data.suggestions) ? data.suggestions : []);
+        setOwnDuplicate(data.ownDuplicate || null);
+      } catch (err) {
+        console.error("Failed to fetch duplicate suggestions:", err);
+      } finally {
+        setSuggestionsLoading(false);
+      }
+    }, 600);
+
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, [description, category, apiUrl]);
+
+  // Register a vote on an existing issue instead of filing a duplicate
+  const handleVote = async (caseId: string) => {
+    const token = sessionStorage.getItem("token");
+    if (!token) {
+      router.push("/");
+      return;
+    }
+    setVotingCaseId(caseId);
+    try {
+      const res = await fetch(`${apiUrl}/grievance/${caseId}/vote`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast({
+          title: "Vote not recorded",
+          description: data.error || "Could not vote on this issue.",
+          variant: "destructive",
+        });
+        return;
+      }
+      setSuggestedVoted(true);
+      localStorage.removeItem(AUTOSAVE_KEY);
+      const trackingPwd = data.trackingPassword;
+      if (trackingPwd) {
+        toast({
+          title: `Vote recorded ✔ ${data.votes} confirmed`,
+          description: `Case ${data.trackingCaseId || data.caseId} is now tracked.\n\nTracking Password: ${trackingPwd}\nRedirecting to public status tracker...`,
+        });
+        setTimeout(() => router.push(`/status?caseId=${encodeURIComponent(data.caseId)}&password=${encodeURIComponent(trackingPwd)}`), 1800);
+      } else {
+        toast({
+          title: "Vote recorded ✔",
+          description: `This issue now has ${data.votes} vote${data.votes === 1 ? "" : "s"} — it will be escalated faster.`,
+        });
+        router.push("/dashboard");
+      }
+    } catch (err: any) {
+      toast({
+        title: "Error",
+        description: err.message,
+        variant: "destructive",
+      });
+    } finally {
+      setVotingCaseId(null);
+    }
+  };
 
   // Generate Captcha
   const refreshCaptcha = () => {
@@ -592,6 +691,89 @@ export default function NewGrievancePage() {
                   <p className="text-[11px] text-gray-400 flex items-center gap-1">
                     <Info className="w-3 h-3" /> Draft automatically saved to browser storage.
                   </p>
+
+                  {/* Duplicate Detection & Similar Issues Suggestions */}
+                  {suggestionsLoading && (
+                    <p className="text-xs text-[#6B7280] flex items-center gap-1.5 pt-1">
+                      <span className="inline-block h-3 w-3 rounded-full border-2 border-[#5E6AD2] border-t-transparent animate-spin" />
+                      Scanning for existing similar grievances…
+                    </p>
+                  )}
+
+                  {!suggestionsLoading && ownDuplicate && !suggestedVoted && (
+                    <div className="rounded-xl border border-amber-300 bg-amber-50/80 p-4 space-y-2 animate-in fade-in">
+                      <div className="flex items-center gap-2">
+                        <AlertTriangle className="w-4 h-4 text-amber-700" />
+                        <span className="text-xs font-bold text-amber-900 uppercase tracking-wider">
+                          You have already reported a similar grievance
+                        </span>
+                      </div>
+                      <p className="text-xs text-amber-900 leading-relaxed font-mono bg-white/70 p-2.5 rounded-lg border border-amber-200 line-clamp-2">
+                        <strong>{ownDuplicate.caseId}</strong>: {ownDuplicate.excerpt}
+                      </p>
+                      <div className="flex items-center justify-between flex-wrap gap-2 pt-1">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => router.push(`/case/${ownDuplicate.caseId}`)}
+                          className="text-xs border-amber-400 text-amber-900 hover:bg-amber-100 h-8"
+                        >
+                          <span>View Your Existing Case</span>
+                          <ArrowRight className="w-3 h-3 ml-1" />
+                        </Button>
+                        <span className="text-[11px] text-amber-800">
+                          Track status directly instead of filing a duplicate.
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
+                  {!suggestionsLoading && suggestions.length > 0 && !suggestedVoted && (
+                    <div className="rounded-xl border border-indigo-200 bg-indigo-50/60 p-4 space-y-3 animate-in fade-in">
+                      <div>
+                        <div className="flex items-center gap-1.5">
+                          <Zap className="w-4 h-4 text-[#5E6AD2]" />
+                          <span className="text-xs font-bold text-[#5E6AD2] uppercase tracking-wider">
+                            Similar Community Issues Found ({suggestions.length})
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-[#6B7280] mt-0.5">
+                          Other citizens have reported this exact issue. Voting adds urgency and helps resolve it faster without duplicate paperwork.
+                        </p>
+                      </div>
+
+                      <div className="space-y-2">
+                        {suggestions.map((s) => (
+                          <div
+                            key={s.caseId}
+                            className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 bg-white border border-gray-200 rounded-xl hover:border-indigo-200 transition shadow-2xs"
+                          >
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className="font-mono text-xs font-bold text-[#5E6AD2]">{s.caseId}</span>
+                                <span className="inline-flex items-center gap-1 rounded-full bg-orange-100 px-2 py-0.5 text-[10px] font-bold text-orange-700">
+                                  🔥 {s.votes} citizen{s.votes === 1 ? "" : "s"} confirmed
+                                </span>
+                              </div>
+                              <p className="text-xs text-gray-700 mt-1 line-clamp-2 leading-relaxed">
+                                {s.excerpt}
+                              </p>
+                            </div>
+                            <Button
+                              type="button"
+                              size="sm"
+                              onClick={() => handleVote(s.caseId)}
+                              disabled={votingCaseId === s.caseId}
+                              className="bg-[#5E6AD2] hover:bg-[#4F5BC0] text-white text-xs shrink-0 self-start sm:self-auto h-8 px-3"
+                            >
+                              {votingCaseId === s.caseId ? "Voting..." : "This is the same — Upvote & Track"}
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <div className="pt-2 flex justify-between">

@@ -35,6 +35,10 @@ const caseSchema = new mongoose.Schema({
   documentCount: { type: Number, default: 0 },
   sourcePortal: { type: String, default: 'cpgrams-web' },
 
+  // Duplicate-detection & Issue Upvoting (StackOverflow-style)
+  votes: { type: Number, default: 0 },
+  voterPairwiseIds: { type: [String], default: [] },
+
   // Action Taken Report (ATR) - Stages 7 & 8
   atrRemarks: { type: String, default: null },
   atrUploadedAt: { type: Date, default: null },

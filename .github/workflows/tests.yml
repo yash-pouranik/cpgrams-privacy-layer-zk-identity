@@ -32,6 +32,8 @@ jobs:
       # push.test.js authenticates external push requests with this key
       API_PUSH_KEYS: dev-push-key-12345
       NODE_ENV: test
+      # verifies the test-only citizen bypass used by voting.test.js
+      TEST_AUTH_SECRET: ci-test-auth-secret
 
     steps:
       - name: Checkout repository
