@@ -323,8 +323,8 @@ Public directory displaying Officer Name, Department, Jurisdiction, Cases Handle
 ```env
 # AI Services & Models
 OPENAI_API_KEY=""
-OPENAI_MODEL_FAST="gpt-4o-mini"
-OPENAI_MODEL_REASONING="gpt-4o"
+OPENAI_MODEL_FAST="gpt-5.6-luna"
+OPENAI_MODEL_REASONING="gpt-5.6-luna"
 PINECONE_API_KEY=""
 PINECONE_INDEX="cpgrams-index"
 PINECONE_ENVIRONMENT=""

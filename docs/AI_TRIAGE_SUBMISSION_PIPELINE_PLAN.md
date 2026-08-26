@@ -1,10 +1,10 @@
-# Implementation Plan: \$100M Grievance Intelligence Platform
+# Implementation Plan: Grievance Intelligence Platform
 
 > **Product Thesis**: India has 1.4 billion citizens and zero infrastructure where a complaint is automatically understood, verified against public evidence, deduplicated across semantic meaning, and routed to the exact right officer — all while the citizen's identity remains cryptographically sealed. This is that infrastructure.
 
 ---
 
-## The \$100M Architecture in One Sentence
+## The Architecture in One Sentence
 
 > The citizen submits the grievance once. The system does the investigation groundwork automatically. The officer receives a pre-analyzed, evidence-enriched, priority-scored intelligence brief. Every officer action is measured and publicly accountable.
 
@@ -39,7 +39,7 @@
   AI_ENABLED, AI_TRIAGE_ENABLED, AI_DOCUMENT_ENABLED,
   AI_RAG_ENABLED, AI_EVIDENCE_ENABLED, AI_ASSIGNMENT_ENABLED
   ```
-- Model tier selection: `OPENAI_MODEL_FAST` (gpt-4o-mini) for classification/extraction, `OPENAI_MODEL_REASONING` (gpt-4o) for synthesis/briefs
+- Model tier selection: `OPENAI_MODEL_FAST` (gpt-5.6-luna) for classification/extraction, `OPENAI_MODEL_REASONING` (gpt-5.6-luna) for synthesis/briefs
 - Concurrency limits: `AI_WORKER_CONCURRENCY`, `TAVILY_MAX_RESULTS`, `AI_MAX_RETRIES`
 
 #### [NEW] `apps/cpgrams-backend/src/ai/integrations/openai.client.js`
@@ -164,8 +164,8 @@ PORT=5000
 # V2 AI Infrastructure
 REDIS_URL="redis://localhost:6379"
 OPENAI_API_KEY=""
-OPENAI_MODEL_FAST="gpt-4o-mini"
-OPENAI_MODEL_REASONING="gpt-4o"
+OPENAI_MODEL_FAST="gpt-5.6-luna"
+OPENAI_MODEL_REASONING="gpt-5.6-luna"
 PINECONE_API_KEY=""
 PINECONE_INDEX="cpgrams-index"
 PINECONE_ENVIRONMENT=""
@@ -343,7 +343,7 @@ Tavily has a REST API — no SDK needed, use native `fetch`.
 
 #### [NEW] `apps/cpgrams-backend/src/ai/agents/documents/document.agent.js`
 - Input: `{ caseId, documentId, filePath, mimeType, originalName, triageContext }`
-- For images/photos: OpenAI Vision API (`gpt-4o`) — scene understanding, text extraction, document type detection
+- For images/photos: OpenAI Vision API (`gpt-5.6-luna`) — scene understanding, text extraction, document type detection
 - For PDFs: Text extraction first, then OpenAI analysis
 - Output (`DocumentAnalysisResult`):
   ```json
