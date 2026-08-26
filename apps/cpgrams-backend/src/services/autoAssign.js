@@ -131,13 +131,7 @@ function resolveDepartment(category, description = '') {
   return 'General Administration';
 }
 
-/**
- * Auto-assign a case to the least-loaded available officer
- * in the relevant department.
- */
-async function autoAssign(category, description = '') {
-  const department = resolveDepartment(category, description);
-
+async function selectOfficerByDepartment(department) {
   // Find the available officer with the lowest currentCaseCount in this department
   let officer = await Officer.findOne({
     department: { $regex: new RegExp(`^${department}$`, 'i') },
@@ -152,14 +146,56 @@ async function autoAssign(category, description = '') {
   if (officer) {
     officer.currentCaseCount += 1;
     await officer.save();
-    return officer;
   }
 
-  return null;
+  return officer;
+}
+
+/**
+ * Auto-assign a case to the least-loaded available officer
+ * in the relevant department.
+ */
+async function autoAssign(category, description = '') {
+  const department = resolveDepartment(category, description);
+  return selectOfficerByDepartment(department);
+}
+
+/**
+ * Auto-assign using AI triage when confidence is high, otherwise fall back
+ * to deterministic keyword routing.
+ */
+async function autoAssignWithAI(triageResult, fallbackContext = {}) {
+  const confidence = Number(triageResult?.classification?.confidence || 0);
+  const aiDepartment = String(triageResult?.classification?.department || '').trim();
+  const fallbackDepartment = resolveDepartment(
+    fallbackContext.category || triageResult?.category || '',
+    fallbackContext.description || triageResult?.description || triageResult?.normalizedComplaint || ''
+  );
+
+  const useAiDepartment = confidence >= 0.8 && Boolean(aiDepartment);
+  const resolvedDepartment = useAiDepartment ? aiDepartment : fallbackDepartment;
+  const officer = await selectOfficerByDepartment(resolvedDepartment);
+
+  if (!officer) {
+    return null;
+  }
+
+  return {
+    ...officer.toObject(),
+    resolvedDepartment,
+    usedAiRecommendation: useAiDepartment,
+    aiConfidence: confidence,
+  };
 }
 
 function getDepartment(category, description = '') {
   return resolveDepartment(category, description);
 }
 
-module.exports = { autoAssign, getDepartment, resolveDepartment, CATEGORY_DEPARTMENT_MAP };
+module.exports = {
+  autoAssign,
+  autoAssignWithAI,
+  getDepartment,
+  resolveDepartment,
+  CATEGORY_DEPARTMENT_MAP,
+};
