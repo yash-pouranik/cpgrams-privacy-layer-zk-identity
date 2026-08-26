@@ -5,6 +5,7 @@ import { useRouter, useParams } from "next/navigation";
 import { ProtectedBanner } from "@/components/ProtectedBanner";
 import { ChatThread } from "@/components/ChatThread";
 import { CaseProgressStepper } from "@/components/CaseProgressStepper";
+import { AiIntelligencePanel } from "@/components/AiIntelligencePanel";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -403,6 +404,11 @@ export default function OfficerCaseDetail() {
           department={grievance.department}
           appealStatus={grievance.appealStatus}
         />
+      </div>
+
+      {/* AI triage and semantic quality context for the assigned officer. */}
+      <div className="mb-8">
+        <AiIntelligencePanel caseId={grievance.caseId} token={officerToken} />
       </div>
 
       {/* Appellate Authority Review Card (Stage 10) */}
