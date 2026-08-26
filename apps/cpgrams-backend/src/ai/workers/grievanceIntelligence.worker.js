@@ -196,6 +196,10 @@ async function processGrievanceIntelligence(job) {
   }
 
   if (AI_RAG_ENABLED) {
+    await AiCaseAnalysis.findOneAndUpdate(
+      { caseId },
+      { $set: { status: 'checking_similar_cases' } }
+    );
     if (!runQualityAgent) runQualityAgent = tryRequire('../agents/quality/quality.agent', 'quality')?.runQualityAgent;
     if (runQualityAgent) {
       parallelTasks.push(

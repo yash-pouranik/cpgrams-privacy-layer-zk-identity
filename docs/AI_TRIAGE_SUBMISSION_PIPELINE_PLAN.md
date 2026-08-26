@@ -14,7 +14,8 @@ current repository status is:
 | Existing CivID, CPGRAMS, and frontend features | Complete |
 | Phase 1 AI foundation | Complete: Redis/BullMQ implementation is present; live Redis smoke test requires Docker running |
 | Phase 2 Agent 1 triage | In progress: structured triage, deterministic fallback, worker persistence, and AI-aware routing are implemented |
-| Phase 3-8 | Not started |
+| Phase 3: Agent 3 semantic quality | In progress: embeddings, Pinecone adapter, quality agent, worker integration, and focused tests are implemented; live Pinecone verification pending |
+| Phase 4-8 | Not started |
 
 The implementation intentionally keeps grievance creation synchronous and runs AI
 processing asynchronously. AI failures must never block the citizen submission path.

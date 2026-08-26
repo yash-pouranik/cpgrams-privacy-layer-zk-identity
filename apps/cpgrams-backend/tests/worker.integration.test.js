@@ -5,7 +5,7 @@ process.env.AI_ENABLED = 'true';
 process.env.AI_TRIAGE_ENABLED = 'true';
 process.env.AI_ASSIGNMENT_ENABLED = 'true';
 process.env.AI_DOCUMENT_ENABLED = 'false';
-process.env.AI_RAG_ENABLED = 'false';
+process.env.AI_RAG_ENABLED = 'true';
 process.env.AI_EVIDENCE_ENABLED = 'false';
 
 const test = require('node:test');
@@ -78,6 +78,9 @@ test('AI worker persists triage and assignment output for a queued grievance', a
     assert.ok(assignmentUpdate, 'assignment result should be persisted');
     assert.equal(assignmentUpdate.update.$set.assignment.resolvedDepartment, 'PWD');
     assert.equal(assignmentUpdate.update.$set.assignment.usedAiRecommendation, true);
+    const qualityUpdate = analysisUpdates.find((entry) => entry.update.$set?.quality);
+    assert.ok(qualityUpdate, 'semantic quality result should be persisted');
+    assert.ok(qualityUpdate.update.$set.quality.qualityScore >= 0);
     assert.equal(caseUpdates.length, 0, 'existing HTTP assignment must not be overwritten');
     assert.ok(agentRuns.some((run) => run.agent === 'triage' && run.status === 'completed'));
     assert.ok(agentRuns.some((run) => run.agent === 'assignment' && run.status === 'completed'));

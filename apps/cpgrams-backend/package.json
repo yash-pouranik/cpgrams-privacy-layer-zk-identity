@@ -17,6 +17,7 @@
     "supertest": "^7.2.2"
   },
   "dependencies": {
+    "@pinecone-database/pinecone": "^8.2.0",
     "bcryptjs": "^3.0.3",
     "bullmq": "^6.3.0",
     "cors": "^2.8.6",
