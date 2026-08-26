@@ -6,6 +6,7 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { ChatThread } from "@/components/ChatThread";
 import { CaseProgressStepper } from "@/components/CaseProgressStepper";
 import { NextActionGuide } from "@/components/NextActionGuide";
+import { AiIntelligencePanel } from "@/components/AiIntelligencePanel";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -313,6 +314,8 @@ export default function CitizenCaseDetail() {
           feedbackSubmitted={grievance.feedbackSubmitted}
           appealStatus={grievance.appealStatus}
         />
+
+        <AiIntelligencePanel caseId={caseId} token={token} />
 
         <NextActionGuide
           status={grievance.status}

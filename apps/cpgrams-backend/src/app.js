@@ -48,6 +48,7 @@ app.use('/grievance', require('./routes/grievance'));
 app.use('/officer', require('./routes/officer'));
 app.use('/chat', require('./routes/chat'));
 app.use('/disclosure', require('./routes/disclosure'));
+app.use('/', require('./routes/aiAnalysis'));
 
 const documentRoutes = require('./routes/documents');
 const statusRoutes = require('./routes/status');
