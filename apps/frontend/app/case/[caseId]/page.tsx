@@ -24,6 +24,7 @@ interface CaseDetail {
   description: string;
   evidenceUrls?: string[];
   createdAt: string;
+  votes?: number;
   feedbackSubmitted?: boolean;
   feedback?: { rating: number; comment: string; createdAt: string };
   atrRemarks?: string | null;
@@ -411,10 +412,17 @@ export default function CitizenCaseDetail() {
       <Card className="bg-[#FFFFFF] border-[#E5E7EB] shadow-sm mb-8 rounded-2xl overflow-hidden">
         <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-6 border-b border-[#E5E7EB] bg-gray-50/40 p-6">
           <div>
-            <div className="font-mono text-3xl font-bold text-[#5E6AD2] mb-2">
-              {grievance.caseId}
+            <div className="flex items-center gap-3 mb-2 flex-wrap">
+              <span className="font-mono text-3xl font-bold text-[#5E6AD2]">
+                {grievance.caseId}
+              </span>
+              {typeof grievance.votes === "number" && grievance.votes > 0 && (
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-orange-50 border border-orange-200 px-3 py-1 text-xs font-bold text-orange-700">
+                  {grievance.votes} Community Upvote{grievance.votes === 1 ? "" : "s"}
+                </span>
+              )}
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 flex-wrap">
               <Badge variant="secondary" className="bg-[#E5E7EB] text-[#111827] font-normal hover:bg-[#E5E7EB]">
                 {grievance.category}
               </Badge>

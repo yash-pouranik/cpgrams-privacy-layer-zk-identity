@@ -24,6 +24,7 @@ interface CaseDetail {
   description: string;
   evidenceUrls?: string[];
   createdAt: string;
+  votes?: number;
   atrRemarks?: string | null;
   atrUploadedAt?: string | null;
   appealReason?: string | null;
@@ -479,10 +480,17 @@ export default function OfficerCaseDetail() {
       <Card className="bg-[#FFFFFF] border-[#E5E7EB] shadow-sm mb-8 rounded-2xl overflow-hidden">
         <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-6 border-b border-[#E5E7EB] bg-gray-50/40 p-6">
           <div>
-            <div className="font-mono text-3xl font-bold text-[#5E6AD2] mb-2">
-              {grievance.caseId}
+            <div className="flex items-center gap-3 mb-2 flex-wrap">
+              <span className="font-mono text-3xl font-bold text-[#5E6AD2]">
+                {grievance.caseId}
+              </span>
+              {typeof grievance.votes === "number" && grievance.votes > 0 && (
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-orange-50 border border-orange-200 px-3 py-1 text-xs font-bold text-orange-700">
+                  {grievance.votes} Community Upvote{grievance.votes === 1 ? "" : "s"}
+                </span>
+              )}
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 flex-wrap">
               <Badge variant="secondary" className="bg-[#E5E7EB] text-[#111827] font-normal hover:bg-[#E5E7EB]">
                 {grievance.category}
               </Badge>
@@ -491,15 +499,17 @@ export default function OfficerCaseDetail() {
               </span>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap w-full sm:w-auto">
             <Select value={statusInput} onValueChange={(value) => setStatusInput(value ?? "")}>
-              <SelectTrigger className="w-[180px] bg-[#F9FAFB] border-[#E5E7EB] text-xs">
-                <SelectValue placeholder="Status" />
+              <SelectTrigger className="w-full sm:w-[220px] bg-[#F9FAFB] border-[#E5E7EB] text-xs">
+                <SelectValue placeholder="Update Status" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="max-h-[300px] overflow-y-auto">
+                <SelectItem value="received">1. Received / Registered</SelectItem>
                 <SelectItem value="under_process">2. Under Process (Nodal)</SelectItem>
                 <SelectItem value="forwarded">3. Forwarded to Subordinate</SelectItem>
                 <SelectItem value="disposed">4. Disposed / Closed (ATR)</SelectItem>
+                <SelectItem value="appealed">5. Appeal Under Review (NAA)</SelectItem>
               </SelectContent>
             </Select>
             <Button 
@@ -513,7 +523,7 @@ export default function OfficerCaseDetail() {
                 }
               }} 
               disabled={updating || statusInput === grievance.status}
-              className="bg-[#111827] text-white hover:bg-[#374151] text-xs h-9 px-4"
+              className="bg-[#111827] text-white hover:bg-[#374151] text-xs h-9 px-4 shrink-0"
             >
               Update Status
             </Button>

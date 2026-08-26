@@ -1,19 +1,23 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { CaseCard } from "@/components/CaseCard";
 import { Badge } from "@/components/ui/badge";
 import { ConfirmModal } from "@/components/ConfirmModal";
-import { ShieldCheck, Plus, LogOut, FileText, CheckCircle2, Clock, Sparkles, ArrowRight, ShieldAlert, Lock } from "lucide-react";
+import { ShieldCheck, Plus, LogOut, Search, Clock, Sparkles, ArrowRight, Filter, X } from "lucide-react";
 
 interface Case {
   caseId: string;
   category: string;
   status: string;
   createdAt: string;
+  department?: string | null;
+  description?: string;
+  votes?: number;
   feedbackSubmitted?: boolean;
 }
 
@@ -22,6 +26,10 @@ export default function DashboardPage() {
   const [cases, setCases] = useState<Case[]>([]);
   const [loading, setLoading] = useState(true);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+
+  // Search & Filter state
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
 
   useEffect(() => {
     const fetchCases = async () => {
@@ -65,6 +73,32 @@ export default function DashboardPage() {
     router.push("/");
   };
 
+  const filteredCases = useMemo(() => {
+    return cases.filter((c) => {
+      // Status filter
+      if (statusFilter !== "all") {
+        const norm = (c.status || "").toLowerCase().replace(/[\s-]/g, "_");
+        if (statusFilter === "under_process" && !(norm === "under_process" || norm === "assigned")) return false;
+        if (statusFilter === "forwarded" && !(norm === "forwarded" || norm === "in_progress")) return false;
+        if (statusFilter === "disposed" && !(norm === "disposed" || norm === "resolved")) return false;
+        if (statusFilter === "received" && !(norm === "received" || norm === "pending")) return false;
+        if (statusFilter === "appealed" && norm !== "appealed") return false;
+      }
+
+      // Search Query
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase().trim();
+        const matchesId = c.caseId.toLowerCase().includes(q);
+        const matchesCategory = (c.category || "").toLowerCase().includes(q);
+        const matchesDesc = (c.description || "").toLowerCase().includes(q);
+        const matchesDept = (c.department || "").toLowerCase().includes(q);
+        return matchesId || matchesCategory || matchesDesc || matchesDept;
+      }
+
+      return true;
+    });
+  }, [cases, statusFilter, searchQuery]);
+
   if (loading) {
     return (
       <div className="flex justify-center items-center flex-1 min-h-[60vh]">
@@ -73,9 +107,9 @@ export default function DashboardPage() {
     );
   }
 
-  const pendingCount = cases.filter(c => c.status === 'pending' || c.status === 'assigned').length;
-  const inProgressCount = cases.filter(c => c.status === 'in_progress').length;
-  const resolvedCount = cases.filter(c => c.status === 'resolved').length;
+  const pendingCount = cases.filter(c => c.status === 'pending' || c.status === 'assigned' || c.status === 'received').length;
+  const inProgressCount = cases.filter(c => c.status === 'in_progress' || c.status === 'under_process' || c.status === 'forwarded').length;
+  const resolvedCount = cases.filter(c => c.status === 'resolved' || c.status === 'disposed').length;
 
   return (
     <div className="max-w-5xl mx-auto w-full px-6 py-12 flex-1">
@@ -135,16 +169,73 @@ export default function DashboardPage() {
         </div>
       )}
 
-      <div className="flex items-center justify-between mb-6">
+      {/* Header & Filter Bar */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
           <h2 className="text-2xl font-bold text-[#111827] tracking-tight">My Grievances</h2>
           <p className="text-sm text-[#6B7280] mt-1">Track redressal timeline, chat with officers, and download official reports.</p>
         </div>
-        <Badge variant="outline" className="text-sm px-3 py-1 font-semibold text-[#5E6AD2] bg-indigo-50 border-indigo-200">
-          {cases.length} Filed
+        <Badge variant="outline" className="text-sm px-3 py-1 font-semibold text-[#5E6AD2] bg-indigo-50 border-indigo-200 self-start sm:self-auto">
+          {filteredCases.length} of {cases.length} Grievances
         </Badge>
       </div>
 
+      {/* Interactive Search & Filter Controls */}
+      {cases.length > 0 && (
+        <div className="bg-white border border-gray-200 rounded-2xl p-4 mb-6 shadow-2xs space-y-3">
+          <div className="flex flex-col sm:flex-row gap-3">
+            {/* Search Input */}
+            <div className="relative flex-1">
+              <Search className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+              <Input
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search by Case ID, Category, Department, or Description..."
+                className="pl-9 bg-[#F9FAFB] border-gray-200 text-xs h-9"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery("")}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Status Filter Pill Tabs */}
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
+            <span className="text-[11px] font-semibold text-gray-400 mr-1 flex items-center gap-1">
+              <Filter className="w-3 h-3" /> Status:
+            </span>
+            {[
+              { id: "all", label: "All Cases" },
+              { id: "received", label: "Received" },
+              { id: "under_process", label: "Under Process" },
+              { id: "forwarded", label: "Forwarded" },
+              { id: "disposed", label: "Disposed" },
+              { id: "appealed", label: "Appealed" },
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setStatusFilter(tab.id)}
+                className={`px-3 py-1 rounded-full text-xs font-medium transition shrink-0 ${
+                  statusFilter === tab.id
+                    ? "bg-[#5E6AD2] text-white shadow-2xs"
+                    : "bg-gray-100 text-gray-600 hover:bg-gray-200/70"
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Cases List Rendering (1 Case Per Row) */}
       {cases.length === 0 ? (
         <div className="bg-white border border-[#E5E7EB] rounded-2xl p-10 text-center shadow-sm">
           <div className="w-12 h-12 bg-indigo-50 text-[#5E6AD2] rounded-2xl flex items-center justify-center mx-auto mb-4">
@@ -157,15 +248,15 @@ export default function DashboardPage() {
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 max-w-2xl mx-auto mb-8 text-left text-xs">
             <div className="p-3 bg-gray-50 border border-gray-200 rounded-xl">
-              <span className="font-bold text-gray-900 block mb-0.5">🔒 Identity Shielded</span>
+              <span className="font-bold text-gray-900 block mb-0.5">Identity Shielded</span>
               <span className="text-gray-500">Officer sees only randomized Pairwise Case ID.</span>
             </div>
             <div className="p-3 bg-gray-50 border border-gray-200 rounded-xl">
-              <span className="font-bold text-gray-900 block mb-0.5">⚡ Auto Routed</span>
+              <span className="font-bold text-gray-900 block mb-0.5">Auto Routed</span>
               <span className="text-gray-500">Directly assigned to responsible Nodal Officer.</span>
             </div>
             <div className="p-3 bg-gray-50 border border-gray-200 rounded-xl">
-              <span className="font-bold text-gray-900 block mb-0.5">💬 Masked Chat</span>
+              <span className="font-bold text-gray-900 block mb-0.5">Masked Chat</span>
               <span className="text-gray-500">Directly communicate without revealing mobile/email.</span>
             </div>
           </div>
@@ -177,17 +268,24 @@ export default function DashboardPage() {
             </Link>
           </Button>
         </div>
+      ) : filteredCases.length === 0 ? (
+        <div className="bg-white border border-gray-200 rounded-2xl p-10 text-center shadow-2xs">
+          <Search className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+          <h3 className="text-sm font-bold text-gray-900">No matching grievances found</h3>
+          <p className="text-xs text-gray-500 mt-1">Try adjusting your search terms or status filters.</p>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => { setSearchQuery(""); setStatusFilter("all"); }}
+            className="mt-4 text-xs"
+          >
+            Clear Filters
+          </Button>
+        </div>
       ) : (
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {cases.map((c) => (
-            <div key={c.caseId} className="relative">
-              <CaseCard data={c} href={`/case/${c.caseId}`} />
-              {c.status === 'resolved' && c.feedbackSubmitted && (
-                <div className="absolute top-2 right-2 mt-[-10px] mr-[-10px]">
-                  <span className="badge badge-success badge-sm shadow-sm text-xs text-white">Feedback Submitted</span>
-                </div>
-              )}
-            </div>
+        <div className="space-y-3">
+          {filteredCases.map((c) => (
+            <CaseCard key={c.caseId} data={c} href={`/case/${c.caseId}`} />
           ))}
         </div>
       )}
