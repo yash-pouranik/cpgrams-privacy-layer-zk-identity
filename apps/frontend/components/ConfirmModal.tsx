@@ -70,7 +70,10 @@ export function ConfirmModal({
               <DialogTitle className="text-lg font-bold text-gray-900 tracking-tight">{title}</DialogTitle>
             </div>
           </div>
-          <DialogDescription className="text-sm text-gray-600 leading-relaxed pt-1">
+          <DialogDescription
+            className="text-sm text-gray-600 leading-relaxed pt-1"
+            render={<div className="text-sm text-gray-600 leading-relaxed pt-1" />}
+          >
             {description}
           </DialogDescription>
         </DialogHeader>

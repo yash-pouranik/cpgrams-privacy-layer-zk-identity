@@ -27,6 +27,7 @@ const router = Router();
  */
 router.post('/', verifyToken, upload.array('files', 5), async (req, res) => {
   try {
+    const { pairwiseId } = req.citizen;
     const {
       category,
       description,
@@ -44,10 +45,10 @@ router.post('/', verifyToken, upload.array('files', 5), async (req, res) => {
     }
 
     const caseId = await generateCaseId(pairwiseId);
-    let department = explicitDept && explicitDept !== 'NOT_LISTED' ? explicitDept : getDepartment(category);
+    let department = explicitDept && explicitDept !== 'NOT_LISTED' ? explicitDept : getDepartment(category, description);
 
-    // Try to auto-assign an officer
-    const officer = await autoAssign(category);
+    // Try to auto-assign an officer via semantic IGMS auto-routing
+    const officer = await autoAssign(category, description);
 
     // Generate Registration Password for public tracking
     const password = crypto.randomBytes(4).toString('hex');

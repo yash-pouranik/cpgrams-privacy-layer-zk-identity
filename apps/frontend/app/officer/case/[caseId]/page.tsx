@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Textarea } from "@/components/ui/textarea";
 import { ConfirmModal } from "@/components/ConfirmModal";
 import { useToast } from "@/hooks/use-toast";
-import { Download, Upload, HelpCircle, ShieldAlert, ArrowLeft, Clock, FileCheck, Loader2, Sparkles, Scale, FileText, CheckCircle2 } from "lucide-react";
+import { Download, Upload, HelpCircle, ShieldAlert, ArrowLeft, Clock, FileCheck, Loader2, Sparkles, Scale, FileText, CheckCircle2, ExternalLink, Link2 } from "lucide-react";
 import Link from "next/link";
 
 interface CaseDetail {
@@ -22,6 +22,7 @@ interface CaseDetail {
   status: string;
   department: string | null;
   description: string;
+  evidenceUrls?: string[];
   createdAt: string;
   atrRemarks?: string | null;
   atrUploadedAt?: string | null;
@@ -596,6 +597,40 @@ export default function OfficerCaseDetail() {
                 No documents uploaded yet.
               </p>
             )}
+
+            {/* External Web Evidence Links */}
+            {(() => {
+              const externalEvidenceLinks = (grievance.evidenceUrls || []).filter(
+                (url) => !url.includes("/uploads/") && (url.startsWith("http://") || url.startsWith("https://"))
+              );
+              if (externalEvidenceLinks.length === 0) return null;
+              return (
+                <div className="pt-4 border-t border-gray-100">
+                  <h4 className="text-xs font-bold text-gray-800 uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
+                    <Link2 className="w-3.5 h-3.5 text-indigo-600" /> Attached External Web Evidence ({externalEvidenceLinks.length})
+                  </h4>
+                  <div className="space-y-2">
+                    {externalEvidenceLinks.map((link, idx) => (
+                      <div key={idx} className="flex items-center justify-between p-3 bg-indigo-50/50 border border-indigo-200/80 rounded-xl text-xs gap-3">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <ExternalLink className="w-4 h-4 text-indigo-600 shrink-0" />
+                          <span className="font-mono text-indigo-900 truncate">{link}</span>
+                        </div>
+                        <a
+                          href={link}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 px-3 py-1 bg-white border border-indigo-300 text-indigo-700 hover:bg-indigo-50 rounded-lg text-xs font-medium transition shadow-2xs shrink-0"
+                        >
+                          <span>Open Link</span>
+                          <ExternalLink className="w-3 h-3" />
+                        </a>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         </CardContent>
       </Card>
