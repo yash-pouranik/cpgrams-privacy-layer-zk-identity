@@ -19,6 +19,9 @@ const caseSchema = new mongoose.Schema({
   feedbackSubmitted: { type: Boolean, default: false },
   documentCount: { type: Number, default: 0 },
   sourcePortal: { type: String, default: 'cpgrams-web' },
+  // ---- Duplicate-detection / voting (StackOverflow-style) ----
+  votes: { type: Number, default: 0 },
+  voterPairwiseIds: { type: [String], default: [] },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now },
 });

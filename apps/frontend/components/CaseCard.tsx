@@ -10,6 +10,7 @@ interface Case {
   category: string;
   status: string;
   createdAt: string;
+  votes?: number;
 }
 
 interface CaseCardProps {
@@ -38,7 +39,14 @@ export function CaseCard({ data, href }: CaseCardProps) {
             <Badge variant="secondary" className="bg-[#E5E7EB] text-[#111827] hover:bg-[#D1D5DB] font-normal">
               {data.category}
             </Badge>
-            <span className="text-sm text-[#6B7280]">{dateStr}</span>
+            <div className="flex items-center gap-2">
+              {typeof data.votes === "number" && data.votes > 0 && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-orange-100 px-2 py-0.5 text-xs font-semibold text-orange-700">
+                  {data.votes} votes
+                </span>
+              )}
+              <span className="text-sm text-[#6B7280]">{dateStr}</span>
+            </div>
           </div>
           <div className="pt-2">
             <Link href={href} className="text-[#5E6AD2] hover:underline text-sm font-medium">

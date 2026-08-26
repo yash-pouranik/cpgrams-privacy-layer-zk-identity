@@ -101,7 +101,7 @@ router.get('/cases', async (req, res) => {
   try {
     const cases = await Case.find({ assignedOfficerId: req.officer.officerId })
       .select('-pairwiseId -__v')
-      .sort({ createdAt: -1 });
+      .sort({ votes: -1, createdAt: -1 });
     return res.json(cases);
   } catch (err) {
     console.error('Officer cases error:', err);

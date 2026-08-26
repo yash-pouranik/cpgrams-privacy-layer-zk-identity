@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -9,6 +9,9 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { useToast } from "@/hooks/use-toast";
 
 const AUTOSAVE_KEY = "cpgrams_draft_desc";
+
+// Min description length before we start querying duplicate suggestions.
+const SUGGEST_MIN = 40;
 
 // Allowed file types: images and PDFs only.
 const ACCEPTED_TYPES = [
@@ -37,6 +40,21 @@ export default function NewGrievancePage() {
   const [files, setFiles] = useState<StoredFile[]>([]);
   const [loading, setLoading] = useState(false);
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+
+  // ---- Duplicate-detection suggestions (StackOverflow-style) ----
+  const [suggestions, setSuggestions] = useState<
+    { caseId: string; excerpt: string; votes: number; status: string }[]
+  >([]);
+  const [suggestionsLoading, setSuggestionsLoading] = useState(false);
+  const [votingCaseId, setVotingCaseId] = useState<string | null>(null);
+  const [suggestedVoted, setSuggestedVoted] = useState(false);
+  const [ownDuplicate, setOwnDuplicate] = useState<{
+    caseId: string;
+    excerpt: string;
+    votes: number;
+    status: string;
+  } | null>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Fetch categories
   useEffect(() => {
@@ -107,6 +125,94 @@ export default function NewGrievancePage() {
     }, 30000); // 30s
     return () => clearInterval(interval);
   }, [description]);
+
+  // Debounced duplicate-detection suggestions.
+  // Fires ~600ms after the user stops typing, so it's not spamming the API
+  // while they write. Shows only when category + a substantial draft exist.
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    const trimmed = description.trim();
+    if (!category || trimmed.length < SUGGEST_MIN) {
+      setSuggestions([]);
+      setOwnDuplicate(null);
+      return;
+    }
+    const token = sessionStorage.getItem("token");
+    if (!token) return;
+
+    debounceRef.current = setTimeout(async () => {
+      try {
+        setSuggestionsLoading(true);
+        const res = await fetch(
+          `${apiUrl}/grievance/suggestions?category=${encodeURIComponent(category)}&q=${encodeURIComponent(trimmed)}`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        if (!res.ok) return;
+        const data = await res.json();
+        setSuggestions(Array.isArray(data.suggestions) ? data.suggestions : []);
+        setOwnDuplicate(data.ownDuplicate || null);
+      } catch (err) {
+        console.error("Failed to fetch duplicate suggestions:", err);
+      } finally {
+        setSuggestionsLoading(false);
+      }
+    }, 600);
+
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, [description, category, apiUrl]);
+
+  // Register a vote on an existing issue instead of filing a duplicate.
+  const handleVote = async (caseId: string) => {
+    const token = sessionStorage.getItem("token");
+    if (!token) {
+      router.push("/");
+      return;
+    }
+    setVotingCaseId(caseId);
+    try {
+      const res = await fetch(`${apiUrl}/grievance/${caseId}/vote`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast({
+          title: "Vote not recorded",
+          description: data.error || "Could not vote on this issue.",
+          variant: "destructive",
+        });
+        return;
+      }
+      setSuggestedVoted(true);
+      localStorage.removeItem(AUTOSAVE_KEY);
+      // Surface the tracking info so this voter can follow the issue.
+      const trackingPwd = data.trackingPassword;
+      if (trackingPwd) {
+        toast({
+          title: `Vote recorded ✔ ${data.votes} confirmed`,
+          description: `Case ${data.trackingCaseId || data.caseId} is now tracked.\n\nTracking Password: ${trackingPwd}\nUse the public status tracker to follow it.`,
+        });
+        // Give a moment for the toast to be seen, then go to the status tracker.
+        setTimeout(() => router.push(`/status?caseId=${encodeURIComponent(data.caseId)}&password=${encodeURIComponent(trackingPwd)}`), 1800);
+      } else {
+        toast({
+          title: "Vote recorded ✔",
+          description: `This issue now has ${data.votes} vote${data.votes === 1 ? "" : "s"} — it will be escalated faster.`,
+        });
+        router.push("/dashboard");
+      }
+    } catch (err: any) {
+      toast({
+        title: "Error",
+        description: err.message,
+        variant: "destructive",
+      });
+    } finally {
+      setVotingCaseId(null);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -221,6 +327,65 @@ export default function NewGrievancePage() {
                 placeholder="Describe your issue in detail..."
                 className="min-h-[150px] bg-[#F9FAFB] border-[#E5E7EB] resize-y"
               />
+              {suggestionsLoading && (
+                <p className="text-xs text-[#6B7280] flex items-center gap-1">
+                  <span className="inline-block h-3 w-3 rounded-full border-2 border-[#5E6AD2] border-t-transparent animate-spin" />
+                  Checking for similar reported issues…
+                </p>
+              )}
+              {!suggestionsLoading && ownDuplicate && !suggestedVoted && (
+                <div className="rounded-xl border border-amber-200 bg-amber-50/70 p-4 space-y-2">
+                  <p className="text-sm font-semibold text-amber-800">
+                    ✔ You already reported this complaint
+                  </p>
+                  <p className="text-sm text-[#6B7280] line-clamp-2">
+                    {ownDuplicate.caseId} — {ownDuplicate.excerpt}
+                  </p>
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => router.push(`/case/${ownDuplicate.caseId}`)}
+                      className="text-xs border-amber-300 text-amber-800 hover:bg-amber-100"
+                    >
+                      View your case &rarr;
+                    </Button>
+                    <p className="text-xs text-amber-700 self-center">
+                      No need to file again — track progress on your existing case.
+                    </p>
+                  </div>
+                </div>
+              )}
+              {!suggestionsLoading && suggestions.length > 0 && !suggestedVoted && (
+                <div className="rounded-xl border border-indigo-200 bg-indigo-50/50 p-4 space-y-3">
+                  <div>
+                    <p className="text-sm font-semibold text-[#5E6AD2]">🔍 Similar issues were already reported</p>
+                    <p className="text-xs text-[#6B7280] mt-0.5">
+                      You might be facing a known problem. Voting helps escalate it faster than re-filing.
+                    </p>
+                  </div>
+                  <ul className="space-y-2">
+                    {suggestions.map((s) => (
+                      <li key={s.caseId} className="flex flex-col sm:flex-row sm:items-center gap-2 rounded-lg border border-[#E5E7EB] bg-white p-3">
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs font-semibold text-[#5E6AD2]">
+                            {s.caseId} · {s.votes} citizen{s.votes === 1 ? "" : "s"} already confirmed
+                          </p>
+                          <p className="text-sm text-[#111827] line-clamp-2">{s.excerpt}</p>
+                        </div>
+                        <Button
+                          type="button"
+                          onClick={() => handleVote(s.caseId)}
+                          disabled={votingCaseId === s.caseId}
+                          className="bg-[#5E6AD2] hover:bg-[#4F5BC0] text-white text-xs shrink-0"
+                        >
+                          {votingCaseId === s.caseId ? "Recording…" : "This is the same — Vote"}
+                        </Button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
 
             <div className="space-y-2">

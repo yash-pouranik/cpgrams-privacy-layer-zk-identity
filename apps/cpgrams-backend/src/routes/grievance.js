@@ -6,10 +6,12 @@ const { Router } = require('express');
 const fs = require('fs');
 const Case = require('../models/Case');
 const AuditLog = require('../models/AuditLog');
+const CaseFollow = require('../models/CaseFollow');
 const verifyToken = require('../middleware/verifyToken');
 const { upload } = require('../middleware/upload');
 const { generateCaseId } = require('../services/caseId');
 const { autoAssign, getDepartment } = require('../services/autoAssign');
+const { findSimilarCases, MIN_QUERY_LENGTH } = require('../services/duplicateDetect');
 
 const router = Router();
 
@@ -136,6 +138,138 @@ router.get('/my', verifyToken, async (req, res) => {
     return res.json(cases);
   } catch (err) {
     console.error('My grievances error:', err);
+    return res.status(500).json({ error: 'Internal server error.' });
+  }
+});
+
+/**
+ * GET /grievance/suggestions
+ * StackOverflow-style duplicate detection: given a draft description (and
+ * category), return similar recently-reported OPEN cases so the citizen can
+ * vote on an existing issue instead of filing a duplicate.
+ * Must be defined BEFORE /:caseId.
+ */
+router.get('/suggestions', verifyToken, async (req, res) => {
+  try {
+    const { pairwiseId } = req.citizen;
+    const { category, q } = req.query;
+
+    if (!q || String(q).length < MIN_QUERY_LENGTH) {
+      return res.json({ suggestions: [], ownDuplicate: null });
+    }
+
+    const result = await findSimilarCases({
+      category,
+      description: String(q),
+      pairwiseId,
+    });
+    return res.json(result);
+  } catch (err) {
+    console.error('Suggestions error:', err);
+    return res.status(500).json({ error: 'Internal server error.' });
+  }
+});
+
+/**
+ * POST /grievance/:caseId/vote
+ * Citizen upvotes an existing reported issue. One vote per citizen.
+ * Vote count acts as an urgency/priority signal for officers.
+ */
+router.post('/:caseId/vote', verifyToken, async (req, res) => {
+  try {
+    const { pairwiseId } = req.citizen;
+    const grievance = await Case.findOne({ caseId: req.params.caseId });
+
+    if (!grievance) {
+      return res.status(404).json({ error: 'Case not found.' });
+    }
+    if (grievance.pairwiseId === pairwiseId) {
+      return res.status(400).json({ error: 'You cannot vote on your own grievance.' });
+    }
+    if (grievance.voterPairwiseIds.includes(pairwiseId)) {
+      return res.status(409).json({
+        error: 'You have already voted on this issue.',
+        votes: grievance.votes,
+      });
+    }
+
+    grievance.votes += 1;
+    grievance.voterPairwiseIds.push(pairwiseId);
+    await grievance.save();
+
+    // Mint a per-voter tracking password so this user can follow the issue
+    // via the public status tracker. The original filer's registrationPassword
+    // is never revealed — each voter gets their own secret.
+    const trackingPassword = crypto.randomBytes(4).toString('hex');
+    await CaseFollow.findOneAndUpdate(
+      { caseId: grievance.caseId, voterPairwiseId: pairwiseId },
+      {
+        caseId: grievance.caseId,
+        voterPairwiseId: pairwiseId,
+        trackingPassword,
+      },
+      { upsert: true, new: true }
+    );
+
+    // Audit log (no identity leak — pairwiseId only)
+    await AuditLog.create({
+      eventType: 'grievance_upvoted',
+      actorId: pairwiseId,
+      targetCaseId: grievance.caseId,
+      targetPairwiseId: grievance.pairwiseId,
+      metadata: { votes: grievance.votes },
+    });
+
+    return res.json({
+      caseId: grievance.caseId,
+      votes: grievance.votes,
+      trackingCaseId: grievance.caseId,
+      trackingPassword,
+      message: 'Vote recorded. Use the tracking password to follow this issue on the public portal.',
+    });
+  } catch (err) {
+    console.error('Vote error:', err);
+    return res.status(500).json({ error: 'Internal server error.' });
+  }
+});
+
+/**
+ * GET /grievance/followed
+ * List the cases this citizen has voted on (followed), along with their own
+ * tracking passwords so they can check status on the public tracker.
+ * Must be defined BEFORE /:caseId.
+ */
+router.get('/followed', verifyToken, async (req, res) => {
+  try {
+    const { pairwiseId } = req.citizen;
+    const follows = await CaseFollow.find({ voterPairwiseId: pairwiseId })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    const caseIds = follows.map((f) => f.caseId);
+    const cases = await Case.find({ caseId: { $in: caseIds } })
+      .select('caseId category description votes status createdAt')
+      .lean();
+
+    const byId = new Map(cases.map((c) => [c.caseId, c]));
+
+    const followed = [];
+    for (const f of follows) {
+      const c = byId.get(f.caseId);
+      if (!c) continue;
+      followed.push({
+        caseId: c.caseId,
+        category: c.category,
+        status: c.status,
+        votes: c.votes || 0,
+        createdAt: c.createdAt,
+        trackingPassword: f.trackingPassword,
+      });
+    }
+
+    return res.json({ followed });
+  } catch (err) {
+    console.error('Followed cases error:', err);
     return res.status(500).json({ error: 'Internal server error.' });
   }
 });

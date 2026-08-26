@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,6 +28,7 @@ interface HistoryItem {
 }
 
 export default function StatusPage() {
+  const searchParams = useSearchParams();
   const [caseId, setCaseId] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -35,6 +37,42 @@ export default function StatusPage() {
   
   const [historyLoading, setHistoryLoading] = useState(false);
   const [history, setHistory] = useState<HistoryItem[] | null>(null);
+
+  // Auto-check when the page is reached from the voting flow
+  // (/status?caseId=...&password=...) so the voter immediately sees status.
+  useEffect(() => {
+    const qCase = searchParams.get("caseId");
+    const qPwd = searchParams.get("password");
+    if (!qCase || !qPwd) return;
+    setCaseId(qCase);
+    setPassword(qPwd);
+    // perform the check using the raw query values
+    const run = async () => {
+      setLoading(true);
+      setError(null);
+      setStatusData(null);
+      setHistory(null);
+      try {
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+        const res = await fetch(`${apiUrl}/status/check`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ caseId: qCase.trim().toUpperCase(), registrationPassword: qPwd.trim() }),
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.error || "Case ID or Registration Password not found");
+        }
+        const data = await res.json();
+        setStatusData(data);
+      } catch (err: any) {
+        setError(err.message || "Failed to retrieve status.");
+      } finally {
+        setLoading(false);
+      }
+    };
+    run();
+  }, [searchParams]);
 
   const handleCheck = async (e: React.FormEvent) => {
     e.preventDefault();
