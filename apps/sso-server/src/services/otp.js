@@ -25,22 +25,27 @@ async function sendOtp(email) {
   otpStore.set(email, { otp, expiresAt });
 
   if (process.env.NODE_ENV !== 'test') {
-    try {
-      await getResendClient().emails.send({
-        from: 'CivID SSO <noreply@civid.in>',
-        to: email,
-        subject: 'Your CivID Verification Code',
-        html: `<p>Your OTP is: <strong>${otp}</strong></p><p>This code expires in 5 minutes.</p>`,
-      });
-    } catch (err) {
-      console.error('Resend OTP delivery failed:', err.message);
-      // OTP is still stored — works for local dev even if Resend fails
+    // Attempt email delivery if API key provided
+    if (process.env.RESEND_API_KEY && process.env.RESEND_API_KEY.trim().length > 0) {
+      try {
+        await getResendClient().emails.send({
+          from: 'CivID SSO <noreply@civid.in>',
+          to: email,
+          subject: 'Your CivID Verification Code',
+          html: `<p>Your OTP is: <strong>${otp}</strong></p><p>This code expires in 5 minutes.</p>`,
+        });
+      } catch (err) {
+        console.error('Resend OTP delivery failed:', err.message);
+      }
     }
   }
 
-  // Log OTP in dev for testing (NEVER in production or test)
-  if (process.env.NODE_ENV === 'development') {
-    console.log(`[DEV] OTP for ${email}: ${otp}`);
+  // Always log OTP prominently to console in development/local environments
+  if (process.env.NODE_ENV !== 'production') {
+    console.log('\n======================================================');
+    console.log(`🔑 [CivID SSO OTP] Target Email: ${email}`);
+    console.log(`👉 YOUR VERIFICATION OTP IS:  >> ${otp} <<`);
+    console.log('======================================================\n');
   }
 
   return otp;

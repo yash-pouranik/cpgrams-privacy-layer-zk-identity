@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { CaseCard } from "@/components/CaseCard";
 import { Badge } from "@/components/ui/badge";
+import { ConfirmModal } from "@/components/ConfirmModal";
 import { ShieldCheck, Plus, LogOut, FileText } from "lucide-react";
 
 interface Case {
@@ -20,6 +21,7 @@ export default function DashboardPage() {
   const router = useRouter();
   const [cases, setCases] = useState<Case[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   useEffect(() => {
     const fetchCases = async () => {
@@ -59,6 +61,7 @@ export default function DashboardPage() {
 
   const handleLogout = () => {
     sessionStorage.removeItem("token");
+    setShowLogoutConfirm(false);
     router.push("/");
   };
 
@@ -102,7 +105,7 @@ export default function DashboardPage() {
           </Button>
           <Button
             variant="outline"
-            onClick={handleLogout}
+            onClick={() => setShowLogoutConfirm(true)}
             className="text-xs text-red-600 border-red-200 hover:bg-red-50 flex items-center gap-1.5"
           >
             <LogOut className="w-3.5 h-3.5" /> Logout
@@ -143,6 +146,18 @@ export default function DashboardPage() {
           ))}
         </div>
       )}
+
+      {/* Logout Confirmation Dialog */}
+      <ConfirmModal
+        isOpen={showLogoutConfirm}
+        onClose={() => setShowLogoutConfirm(false)}
+        onConfirm={handleLogout}
+        title="End Citizen Session?"
+        icon="logout"
+        variant="destructive"
+        confirmText="Yes, Log Out"
+        description="Are you sure you want to log out of the Citizen Grievance Portal? Your active grievances remain safely registered and can be accessed on your next login or tracked via Registration ID."
+      />
     </div>
   );
 }

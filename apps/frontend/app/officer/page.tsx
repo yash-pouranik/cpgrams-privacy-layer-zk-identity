@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { CaseCard } from "@/components/CaseCard";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { ConfirmModal } from "@/components/ConfirmModal";
 import { UserCheck, Building2, LogOut, ShieldAlert } from "lucide-react";
 
 interface Case {
@@ -26,6 +27,7 @@ export default function OfficerDashboard() {
   const [cases, setCases] = useState<Case[]>([]);
   const [officer, setOfficer] = useState<OfficerUser | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   useEffect(() => {
     const token = sessionStorage.getItem("officerToken");
@@ -87,6 +89,7 @@ export default function OfficerDashboard() {
   const handleLogout = () => {
     sessionStorage.removeItem("officerToken");
     sessionStorage.removeItem("officerUser");
+    setShowLogoutConfirm(false);
     router.push("/officer/login");
   };
 
@@ -101,7 +104,7 @@ export default function OfficerDashboard() {
   return (
     <div className="max-w-5xl mx-auto w-full px-6 py-12 flex-1">
       {/* Officer Profile Header */}
-      <div className="bg-[#FFFFFF] border border-[#E5E7EB] rounded-xl p-6 shadow-sm mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="bg-[#FFFFFF] border border-[#E5E7EB] rounded-2xl p-6 shadow-sm mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-start gap-4">
           <div className="p-3 bg-indigo-50 border border-indigo-100 rounded-xl text-[#5E6AD2]">
             <UserCheck className="w-6 h-6" />
@@ -129,7 +132,7 @@ export default function OfficerDashboard() {
         <div className="flex items-center gap-3">
           <Button
             variant="outline"
-            onClick={handleLogout}
+            onClick={() => setShowLogoutConfirm(true)}
             className="text-xs text-red-600 border-red-200 hover:bg-red-50 flex items-center gap-1.5"
           >
             <LogOut className="w-3.5 h-3.5" /> Logout
@@ -150,7 +153,7 @@ export default function OfficerDashboard() {
       </div>
 
       {cases.length === 0 ? (
-        <div className="bg-[#F9FAFB] border border-dashed border-[#E5E7EB] rounded-xl p-12 text-center">
+        <div className="bg-[#F9FAFB] border border-dashed border-[#E5E7EB] rounded-2xl p-12 text-center">
           <ShieldAlert className="w-10 h-10 text-[#9CA3AF] mx-auto mb-3" />
           <h3 className="text-base font-semibold text-[#374151]">No assigned cases pending</h3>
           <p className="text-xs text-[#6B7280] mt-1">New complaints routed to your department will appear here automatically.</p>
@@ -162,6 +165,18 @@ export default function OfficerDashboard() {
           ))}
         </div>
       )}
+
+      {/* Logout Confirmation Dialog */}
+      <ConfirmModal
+        isOpen={showLogoutConfirm}
+        onClose={() => setShowLogoutConfirm(false)}
+        onConfirm={handleLogout}
+        title="Log Out of Officer Portal?"
+        icon="logout"
+        variant="destructive"
+        confirmText="Yes, Log Out"
+        description="Are you sure you want to end your active officer session? Any pending drafts or unsaved status selections will be reset."
+      />
     </div>
   );
 }

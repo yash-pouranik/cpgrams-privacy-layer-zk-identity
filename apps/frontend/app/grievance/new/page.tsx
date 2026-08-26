@@ -6,11 +6,13 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { ConfirmModal } from "@/components/ConfirmModal";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
+import { ShieldCheck, KeyRound, Copy, ArrowRight, Zap, Check } from "lucide-react";
 
 const AUTOSAVE_KEY = "cpgrams_draft_desc";
 
-// Allowed file types: images and PDFs only.
 const ACCEPTED_TYPES = [
   "image/jpeg",
   "image/png",
@@ -22,7 +24,7 @@ const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB per file
 
 type StoredFile = {
   file: File;
-  previewUrl: string; // object URL for image/PDF thumbnail preview
+  previewUrl: string;
   size: number;
 };
 
@@ -36,6 +38,10 @@ export default function NewGrievancePage() {
   const [evidenceUrl, setEvidenceUrl] = useState("");
   const [files, setFiles] = useState<StoredFile[]>([]);
   const [loading, setLoading] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [createdCaseInfo, setCreatedCaseInfo] = useState<{ caseId: string; password?: string } | null>(null);
+  const [copied, setCopied] = useState(false);
+  
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
   // Fetch categories
@@ -79,11 +85,9 @@ export default function NewGrievancePage() {
       })),
     ]);
 
-    // Reset input so the same file can be selected again after removal.
     e.target.value = "";
   };
 
-  // Revoke remaining object URLs on unmount to avoid memory leaks.
   useEffect(() => {
     const current = files;
     return () => {
@@ -104,11 +108,20 @@ export default function NewGrievancePage() {
       if (description.length > 0) {
         localStorage.setItem(AUTOSAVE_KEY, description);
       }
-    }, 30000); // 30s
+    }, 30000);
     return () => clearInterval(interval);
   }, [description]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleQuickDemoFill = () => {
+    setCategory("Roads & Highways");
+    setDescription("Severe waterlogging and multiple deep potholes on the main MG Road intersection near Central Hospital. Vehicles are suffering damage and traffic is blocked during peak hours. Urgent repair and storm drain desilting required.");
+    toast({
+      title: "⚡ Sample Grievance Loaded",
+      description: "Demo grievance data filled automatically for quick evaluation.",
+    });
+  };
+
+  const handlePreSubmitCheck = (e: React.FormEvent) => {
     e.preventDefault();
     if (!category || description.length < 50) {
       toast({
@@ -118,7 +131,10 @@ export default function NewGrievancePage() {
       });
       return;
     }
+    setShowConfirmModal(true);
+  };
 
+  const handleConfirmedSubmit = async () => {
     setLoading(true);
     const token = sessionStorage.getItem("token");
     if (!token) {
@@ -127,18 +143,15 @@ export default function NewGrievancePage() {
     }
 
     try {
-      // Build multipart form data.
       const formData = new FormData();
       formData.append("category", category);
       formData.append("description", description);
 
-      // External link-based evidence as a JSON array string.
       const externalUrls = evidenceUrl
         ? evidenceUrl.split(",").map((u) => u.trim()).filter((u) => u)
         : [];
       formData.append("urls", JSON.stringify(externalUrls));
 
-      // Attached files (images/PDFs).
       files.forEach((f) => formData.append("files", f.file, f.file.name));
 
       const res = await fetch(`${apiUrl}/grievance`, {
@@ -154,46 +167,67 @@ export default function NewGrievancePage() {
         throw new Error(errData.error || "Failed to file grievance");
       }
 
-      // Clean up object URL previews since the page is about to navigate away.
       files.forEach((f) => URL.revokeObjectURL(f.previewUrl));
 
       const data = await res.json();
       localStorage.removeItem(AUTOSAVE_KEY);
       
       const pwd = data.registrationPassword || data.password;
+      setShowConfirmModal(false);
+      
       if (pwd) {
-        alert(`Save this Registration Password: ${pwd}\n\nYou can use it to check status on the public portal without logging in.`);
+        setCreatedCaseInfo({ caseId: data.caseId, password: pwd });
+      } else {
+        toast({
+          title: "Grievance Filed Successfully",
+          description: `Case ID: ${data.caseId}`,
+        });
+        router.push(`/case/${data.caseId}`);
       }
-      
-      toast({
-        title: "Grievance Filed Successfully",
-        description: `Case ID: ${data.caseId}`,
-      });
-      
-      router.push(`/case/${data.caseId}`);
     } catch (err: any) {
       toast({
         title: "Error",
         description: err.message,
         variant: "destructive",
       });
+      setShowConfirmModal(false);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleCopyPassword = () => {
+    if (createdCaseInfo?.password) {
+      navigator.clipboard.writeText(createdCaseInfo.password);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
     }
   };
 
   return (
     <div className="max-w-3xl mx-auto w-full px-6 py-12 flex-1">
       <Card className="bg-[#FFFFFF] border-[#E5E7EB] shadow-sm">
-        <CardHeader className="pb-6 border-b border-[#E5E7EB]">
-          <CardTitle className="text-2xl text-[#111827]">File New Grievance</CardTitle>
-          <CardDescription className="text-[#6B7280] flex items-center gap-2 mt-2">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#27a644" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-            <span className="text-[#27a644] font-medium">Your identity will be protected. The officer will only see your Case ID.</span>
-          </CardDescription>
+        <CardHeader className="pb-6 border-b border-[#E5E7EB] flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <CardTitle className="text-2xl text-[#111827]">File New Grievance</CardTitle>
+            <CardDescription className="text-[#6B7280] flex items-center gap-2 mt-2">
+              <ShieldCheck className="w-4 h-4 text-emerald-600" />
+              <span className="text-emerald-600 font-medium">Your identity will be protected. The officer will only see your Case ID.</span>
+            </CardDescription>
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={handleQuickDemoFill}
+            className="text-xs text-[#5E6AD2] border-indigo-200 bg-indigo-50/50 hover:bg-indigo-50 flex items-center gap-1.5 self-start md:self-auto"
+          >
+            <Zap className="w-3.5 h-3.5" /> ⚡ Quick Demo Fill
+          </Button>
         </CardHeader>
+        
         <CardContent className="pt-6">
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handlePreSubmitCheck} className="space-y-6">
             <div className="space-y-2">
               <label className="text-sm font-medium text-[#111827]">Category</label>
               <Select value={category} onValueChange={(val) => setCategory(val || "")}>
@@ -285,14 +319,91 @@ export default function NewGrievancePage() {
               <Button
                 type="submit"
                 disabled={loading || description.length < 50 || !category}
-                className="bg-[#5E6AD2] hover:bg-[#828FFF] text-white px-8"
+                className="bg-[#5E6AD2] hover:bg-[#4F5BC0] text-white px-8"
               >
-                {loading ? "Filing..." : "Submit Grievance"}
+                Submit Privacy-Protected Grievance
               </Button>
             </div>
           </form>
         </CardContent>
       </Card>
+
+      {/* Confirmation Dialog Before Submitting */}
+      <ConfirmModal
+        isOpen={showConfirmModal}
+        onClose={() => setShowConfirmModal(false)}
+        onConfirm={handleConfirmedSubmit}
+        loading={loading}
+        title="Confirm Grievance Submission"
+        icon="info"
+        confirmText="Confirm & Lodge Grievance"
+        description={
+          <div className="space-y-3 pt-2">
+            <div className="bg-gray-50 p-3 rounded-xl border border-gray-200 text-xs space-y-1.5">
+              <div>
+                <span className="font-semibold text-gray-700">Category:</span>{" "}
+                <span className="text-gray-900 font-medium">{category}</span>
+              </div>
+              <div>
+                <span className="font-semibold text-gray-700">Attachments:</span>{" "}
+                <span className="text-gray-900">{files.length} document(s)</span>
+              </div>
+              <div className="text-gray-600 line-clamp-2">
+                <span className="font-semibold text-gray-700">Summary:</span> {description}
+              </div>
+            </div>
+            <div className="flex items-center gap-2 p-2.5 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-800 text-xs">
+              <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
+              <span>Your real Aadhaar and contact details will remain <strong>100% hidden</strong> from the handling department.</span>
+            </div>
+          </div>
+        }
+      />
+
+      {/* Registration Password & Success Modal */}
+      {createdCaseInfo && (
+        <Dialog open={true} onOpenChange={() => {}}>
+          <DialogContent className="max-w-md p-6 bg-white rounded-2xl shadow-xl border border-gray-100">
+            <DialogHeader className="text-center sm:text-left gap-2">
+              <div className="inline-flex p-3 bg-emerald-50 border border-emerald-200 rounded-2xl text-emerald-600 w-fit">
+                <KeyRound className="w-6 h-6" />
+              </div>
+              <DialogTitle className="text-xl font-bold text-gray-900">Grievance Registered Successfully!</DialogTitle>
+              <DialogDescription className="text-xs text-gray-600">
+                Your grievance has been assigned Registration Case ID: <strong className="text-indigo-600 font-mono">{createdCaseInfo.caseId}</strong>
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="my-4 p-4 bg-indigo-50/70 border border-indigo-200 rounded-2xl space-y-2">
+              <p className="text-xs font-semibold text-indigo-950 uppercase tracking-wider">Save Your Registration Password</p>
+              <div className="flex items-center justify-between bg-white px-3 py-2 rounded-xl border border-indigo-200">
+                <span className="font-mono text-lg font-bold text-[#5E6AD2] tracking-wider">{createdCaseInfo.password}</span>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={handleCopyPassword}
+                  className="h-8 text-xs text-indigo-600 hover:bg-indigo-50 flex items-center gap-1"
+                >
+                  {copied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                  {copied ? "Copied" : "Copy"}
+                </Button>
+              </div>
+              <p className="text-[11px] text-gray-600 leading-tight">
+                Use this password on the <strong>Track Status</strong> page to check resolution progress anytime without logging into CivID SSO.
+              </p>
+            </div>
+
+            <DialogFooter className="mt-2">
+              <Button
+                onClick={() => router.push(`/case/${createdCaseInfo.caseId}`)}
+                className="w-full bg-[#5E6AD2] hover:bg-[#4F5BC0] text-white flex items-center justify-center gap-2"
+              >
+                Go to Case Dashboard <ArrowRight className="w-4 h-4" />
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }

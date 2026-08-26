@@ -1,18 +1,26 @@
 import type { Metadata } from "next";
-import { Outfit } from "next/font/google";
+import { Inter, JetBrains_Mono } from "next/font/google";
+import { GovHeader } from "@/components/GovHeader";
 import { Navbar } from "@/components/Navbar";
 import "./globals.css";
 
-const outfit = Outfit({
+const inter = Inter({
   subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700", "800"],
-  variable: "--font-outfit",
+  variable: "--font-inter",
   display: "swap",
+  weight: ["300", "400", "500", "600", "700", "800", "900"],
+});
+
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ["latin"],
+  variable: "--font-mono",
+  display: "swap",
+  weight: ["400", "500", "600", "700"],
 });
 
 export const metadata: Metadata = {
-  title: "Privacy-Preserving CPGRAMS",
-  description: "Verify the citizen. Protect the identity.",
+  title: "CPGRAMS - Centralised Public Grievance Redress And Monitoring System",
+  description: "Government of India &bull; Centralised Public Grievance Redress And Monitoring System with CivID Zero-Knowledge Privacy Architecture.",
 };
 
 export default function RootLayout({
@@ -23,14 +31,10 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${outfit.variable} ${outfit.className} h-full antialiased`}
+      className={`${inter.variable} ${jetbrainsMono.variable} h-full antialiased`}
     >
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
-      </head>
-      <body className={`${outfit.className} min-h-full flex flex-col bg-[#FFFFFF] text-[#111827]`}>
+      <body className="min-h-full flex flex-col bg-white text-slate-900 font-sans">
+        <GovHeader />
         <Navbar />
         <main className="flex-1 flex flex-col">
           {children}
