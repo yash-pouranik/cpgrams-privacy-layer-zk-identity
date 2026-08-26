@@ -49,6 +49,9 @@ export function AiIntelligencePanel({ caseId, token }: { caseId: string; token: 
   const current = Math.max(0, stages.findIndex((stage) => stage.slice(0, -1).includes(status)));
   const triage = analysis?.triage;
   const quality = analysis?.quality;
+  const qualityScore = typeof quality?.qualityScore === "number"
+    ? Math.round(Math.max(0, Math.min(100, quality.qualityScore <= 1 ? quality.qualityScore * 100 : quality.qualityScore)))
+    : null;
   const location = triage?.entities?.location;
   const locationLabel = [location?.city, location?.state, location?.ward ? `Ward ${location.ward}` : null, location?.landmark].filter(Boolean).join(", ");
 
@@ -78,7 +81,7 @@ export function AiIntelligencePanel({ caseId, token }: { caseId: string; token: 
           </div>
           <div className="rounded-lg border border-indigo-100 bg-indigo-50/40 p-3"><p className="text-[10px] font-semibold uppercase text-indigo-700">What triage did</p><p className="mt-1 text-sm leading-relaxed text-gray-800">{triage.normalizedComplaint || "Complaint was normalized for routing."}</p></div>
           <div className="flex flex-wrap gap-2">{locationLabel && <Badge variant="outline"><MapPin className="mr-1 h-3 w-3" />{locationLabel}</Badge>}{triage.classification?.subcategory && <Badge variant="outline">{triage.classification.subcategory}</Badge>}{typeof triage.classification?.confidence === "number" && <Badge variant="outline">Confidence {Math.round(triage.classification.confidence * 100)}%</Badge>}</div>
-          {quality && <div className="border-t border-gray-100 pt-4"><p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-gray-500">Semantic quality review</p><div className="flex flex-wrap gap-2"><Badge variant="outline">Quality {quality.qualityScore ?? "-"}/100</Badge><Badge variant="outline">{quality.isActionable ? "Actionable" : "Needs more detail"}</Badge><Badge variant="outline">Duplicate risk {Math.round((quality.duplicateRisk || 0) * 100)}%</Badge>{(quality.relatedCases?.length || 0) > 0 && <Badge variant="outline">{quality.relatedCases?.length} related case(s)</Badge>}</div>{quality.missingInformation?.length ? <p className="mt-2 text-xs text-gray-600">Additional details that may help: {quality.missingInformation.join(", ")}</p> : null}</div>}
+          {quality && <div className="border-t border-gray-100 pt-4"><p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-gray-500">Semantic quality review</p><div className="flex flex-wrap gap-2"><Badge variant="outline">Quality {qualityScore ?? "-"}/100</Badge><Badge variant="outline">{quality.isActionable ? "Actionable" : "Needs more detail"}</Badge><Badge variant="outline">Duplicate risk {Math.round((quality.duplicateRisk || 0) * 100)}%</Badge>{(quality.relatedCases?.length || 0) > 0 && <Badge variant="outline">{quality.relatedCases?.length} related case(s)</Badge>}</div>{quality.missingInformation?.length ? <p className="mt-2 text-xs text-gray-600">Additional details that may help: {quality.missingInformation.join(", ")}</p> : null}</div>}
         </div> : status === "failed" ? <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-800"><XCircle className="h-4 w-4" /> Automated analysis could not complete. Human processing is still active.</div> : <div className="flex items-center gap-2 text-xs text-gray-600"><Clock3 className="h-4 w-4 text-indigo-600" /> The system is screening your grievance in the background.</div>}
       </CardContent>
     </Card>
