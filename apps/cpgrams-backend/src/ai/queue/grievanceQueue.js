@@ -1,66 +1,53 @@
 'use strict';
 
-/**
- * In-Memory Grievance Intelligence Queue
- *
- * Hackathon-safe replacement for Redis + BullMQ.
- * Uses Node.js EventEmitter to run AI analysis asynchronously
- * AFTER the HTTP response is sent — so grievance creation never blocks.
- *
- * Same external interface as a BullMQ queue:
- *   enqueueAiAnalysis(caseId)    → fires worker in background
- *   getJobStatus(caseId)         → reads AiCaseAnalysis from DB
- *
- * To upgrade to BullMQ later: swap this file only. No other code changes needed.
- */
+const { Queue } = require('bullmq');
+const { createRedisConnection } = require('../../config/redis');
 
-const { EventEmitter } = require('events');
+const QUEUE_NAME = 'grievance-intelligence';
+const connection = createRedisConnection();
+const grievanceQueue = new Queue(QUEUE_NAME, { connection });
+grievanceQueue.on('error', (err) => console.error('[Queue] BullMQ queue error:', err.message));
 
-const queueEmitter = new EventEmitter();
-queueEmitter.setMaxListeners(50); // support burst of simultaneous submissions
-
-// Pending job set — prevents double-enqueue for same case
-const _pending = new Set();
-
-/**
- * Enqueue AI analysis for a case.
- * Emits 'job' event which the worker picks up asynchronously.
- */
-function enqueueAiAnalysis(caseId, meta = {}) {
-  if (_pending.has(caseId)) {
-    console.log(`[Queue] Case ${caseId} already queued — skipping duplicate.`);
-    return;
-  }
-  _pending.add(caseId);
-  // setImmediate so current callstack (HTTP response) finishes first
-  setImmediate(() => {
-    queueEmitter.emit('job', { caseId, enqueuedAt: new Date(), meta });
-  });
-  console.log(`[Queue] Enqueued AI analysis for ${caseId}`);
-}
-
-/**
- * Register the worker handler.
- * Called once at server startup by the worker module.
- */
-function registerWorker(handler) {
-  queueEmitter.on('job', async (job) => {
-    try {
-      await handler(job);
-    } catch (err) {
-      console.error(`[Queue] Worker unhandled error for ${job.caseId}:`, err);
-    } finally {
-      _pending.delete(job.caseId);
+async function enqueueAiAnalysis(caseId, meta = {}) {
+  try {
+    const job = await grievanceQueue.add('analyze-grievance', {
+      caseId,
+      meta,
+      enqueuedAt: new Date().toISOString(),
+    }, {
+      jobId: caseId,
+      attempts: 3,
+      backoff: { type: 'exponential', delay: 1000 },
+      removeOnComplete: { age: 86400, count: 1000 },
+      removeOnFail: { age: 604800, count: 5000 },
+    });
+    console.log(`[Queue] Enqueued AI analysis for ${caseId} (job ${job.id})`);
+    return job;
+  } catch (err) {
+    if (err.message?.includes('Job already exists')) {
+      console.log(`[Queue] Case ${caseId} already queued — skipping duplicate.`);
+      return null;
     }
-  });
-  console.log('[Queue] Grievance Intelligence worker registered.');
+    console.error(`[Queue] Failed to enqueue ${caseId}:`, err.message);
+    return null;
+  }
 }
 
-/**
- * For test/admin: how many jobs are currently in-flight
- */
+async function queueStats() {
+  try {
+    return await grievanceQueue.getJobCounts('waiting', 'active', 'completed', 'failed', 'delayed');
+  } catch (err) {
+    console.warn('[Queue] Unable to read queue stats:', err.message);
+    return { waiting: 0, active: 0, completed: 0, failed: 0, delayed: 0, unavailable: true };
+  }
+}
+
+async function closeQueue() {
+  await grievanceQueue.close();
+}
+
 function pendingCount() {
-  return _pending.size;
+  return 0;
 }
 
-module.exports = { enqueueAiAnalysis, registerWorker, pendingCount };
+module.exports = { QUEUE_NAME, grievanceQueue, enqueueAiAnalysis, queueStats, closeQueue, pendingCount };

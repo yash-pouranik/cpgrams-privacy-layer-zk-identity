@@ -4,6 +4,21 @@
 
 ---
 
+## Current Implementation Status
+
+This plan is the implementation backlog for the V2 architecture specification. The
+current repository status is:
+
+| Area | Status |
+|---|---|
+| Existing CivID, CPGRAMS, and frontend features | Complete |
+| Phase 1 AI foundation | Complete: Redis/BullMQ implementation is present; live Redis smoke test requires Docker running |
+| Phase 2 Agent 1 triage | In progress: structured triage, deterministic fallback, worker persistence, and AI-aware routing are implemented |
+| Phase 3-8 | Not started |
+
+The implementation intentionally keeps grievance creation synchronous and runs AI
+processing asynchronously. AI failures must never block the citizen submission path.
+
 ## The Architecture in One Sentence
 
 > The citizen submits the grievance once. **Drishti AI** executes autonomous investigation groundwork in the background. The officer receives a pre-analyzed, evidence-enriched, priority-scored intelligence brief. Every officer action is measured and publicly accountable.
@@ -26,7 +41,7 @@
 
 | Agent Name | Code Identifier | Role & Responsibilities | Model / Provider |
 |---|---|---|---|
-| **Drishti-Orchestrator** | `worker.js` | Master workflow manager, concurrency, state transitions | Node.js EventEmitter |
+| **Drishti-Orchestrator** | `worker.js` | Master workflow manager, concurrency, state transitions | Node.js + BullMQ Worker backed by Redis |
 | **Drishti-Triage** | Agent 1 (`triage`) | Urgency score, emotion/sentiment, spam detection, category routing | `gpt-5.6-luna` |
 | **Drishti-Vision** | Agent 2 (`document`) | Multimodal OCR, bill/PDF validation, mismatch alerts | `gpt-5.6-luna` (Vision) |
 | **Drishti-Cluster** | Agent 3 (`quality`) | Duplicate detection, semantic quality, vector RAG | Pinecone + `text-embedding-3-small` |
@@ -43,9 +58,9 @@
 ### Backend Changes
 
 #### [NEW] `apps/cpgrams-backend/src/config/redis.js`
-- Initialize `ioredis` connection using `REDIS_URL` env var
-- Export singleton Redis client with reconnect strategy and error logging
-- Connection health check function for `/health` endpoint
+- Create ioredis connections using `REDIS_URL` env var
+- Use bounded retries for health checks and reconnect retries for queue workers
+- Export Redis health check function for `/health` endpoint
 
 #### [NEW] `apps/cpgrams-backend/src/config/aiConfig.js`
 - Centralized AI feature toggles reading from environment:
@@ -141,8 +156,8 @@ Mongoose schema — discovered evidence artifacts:
 #### [NEW] `apps/cpgrams-backend/src/ai/queue/grievanceQueue.js`
 - BullMQ queue named `grievance-intelligence`
 - Job creation function: `enqueueAiAnalysis(caseId)` — called from `POST /grievance` after case creation
-- Job options: 3 retries, exponential backoff (1s, 4s, 16s), 5-minute timeout
-- Dead letter queue for permanently failed jobs
+- Job options: 3 retries, exponential backoff (1s, 2s, 4s), completion/failure retention policies
+- Case ID is used as the BullMQ `jobId` to prevent duplicate jobs
 
 #### [NEW] `apps/cpgrams-backend/src/ai/workers/grievanceIntelligence.worker.js`
 - BullMQ Worker consuming from `grievance-intelligence` queue
@@ -795,7 +810,7 @@ apps/frontend/
 ## Open Questions
 
 > [!IMPORTANT]
-> **Redis Provider**: Do you want to use a local Redis instance (requires installation) or a managed Redis cloud service (e.g. Upstash, Redis Cloud)? Upstash has a free tier that works for hackathon demos.
+> **Redis Provider**: Local Redis is configured for development through `docker-compose.yml` (`redis:7-alpine`). A managed Redis URL can be supplied through `REDIS_URL` without code changes.
 
 > [!IMPORTANT]
 > **Pinecone Index**: Have you already created the Pinecone index? If so, what's the index name and environment? If not, I'll create it programmatically on first boot.

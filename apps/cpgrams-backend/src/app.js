@@ -65,16 +65,23 @@ app.use('/', masterRoutes);        // handles /master/departments, /master/categ
 app.use('/', pushRoutes);          // handles /api/push/grievance
 
 // ---- Health check ----
-app.get('/health', (req, res) => {
-  const { pendingCount } = require('./ai/queue/grievanceQueue');
+app.get('/health', async (req, res) => {
+  const { queueStats } = require('./ai/queue/grievanceQueue');
+  const { redisHealth } = require('./config/redis');
+  const counts = AI_ENABLED ? await queueStats() : {};
+  const redis = AI_ENABLED ? await redisHealth() : { connected: false, disabled: true };
   res.json({
+    // Keep the existing top-level health contract stable for clients.
     status: 'ok',
     service: 'CPGRAMS Backend',
     port: PORT,
     ai: {
       enabled: AI_ENABLED,
-      pendingJobs: AI_ENABLED ? pendingCount() : 0,
+      status: AI_ENABLED && !redis.connected ? 'degraded' : 'ok',
+      pendingJobs: (counts.waiting || 0) + (counts.active || 0),
+      queue: counts,
     },
+    redis,
   });
 });
 
@@ -98,16 +105,39 @@ app.use((err, req, res, next) => {
 
 // ---- Start ----
 if (require.main === module) {
+  let aiWorker = null;
   // Start AI Orchestrator worker BEFORE listening (so first grievance is covered)
   if (AI_ENABLED) {
     const { startWorker } = require('./ai/workers/grievanceIntelligence.worker');
-    startWorker();
+    aiWorker = startWorker();
   }
 
-  app.listen(PORT, () => {
+  const server = app.listen(PORT, () => {
     console.log(`CPGRAMS Backend running at http://localhost:${PORT}`);
     console.log(`AI Analysis: ${AI_ENABLED ? 'ENABLED' : 'DISABLED'}`);
   });
+
+  const shutdown = async (signal) => {
+    console.log(`[CPGRAMS] ${signal} received; shutting down gracefully.`);
+    server.close(async () => {
+      try {
+        if (aiWorker) {
+          const { stopWorker } = require('./ai/workers/grievanceIntelligence.worker');
+          await stopWorker(aiWorker);
+        }
+        const { closeQueue } = require('./ai/queue/grievanceQueue');
+        const { closeRedisHealth } = require('./config/redis');
+        await closeQueue();
+        await closeRedisHealth();
+        await require('mongoose').connection.close(false);
+      } finally {
+        process.exit(0);
+      }
+    });
+  };
+
+  process.once('SIGTERM', () => shutdown('SIGTERM'));
+  process.once('SIGINT', () => shutdown('SIGINT'));
 }
 
 module.exports = app;

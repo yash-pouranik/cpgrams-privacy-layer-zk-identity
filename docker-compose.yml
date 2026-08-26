@@ -20,6 +20,14 @@ services:
     volumes:
       - mongodata:/data/db
 
+  redis:
+    image: redis:7-alpine
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redisdata:/data
+
   mysql:
     image: mysql:8
     restart: always
@@ -35,3 +43,4 @@ volumes:
   pgdata:
   mongodata:
   mysqldata:
+  redisdata:

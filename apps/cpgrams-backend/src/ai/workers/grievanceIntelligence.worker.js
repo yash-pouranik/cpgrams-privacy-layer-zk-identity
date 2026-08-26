@@ -18,7 +18,9 @@ const { nanoid } = require('nanoid');
 const AiCaseAnalysis = require('../../models/AiCaseAnalysis');
 const AiAgentRun     = require('../../models/AiAgentRun');
 const Case           = require('../../models/Case');
-const { registerWorker } = require('../queue/grievanceQueue');
+const { Worker } = require('bullmq');
+const { QUEUE_NAME } = require('../queue/grievanceQueue');
+const { createRedisConnection } = require('../../config/redis');
 const { autoAssignWithAI } = require('../../services/autoAssign');
 const {
   AI_TRIAGE_ENABLED,
@@ -26,6 +28,7 @@ const {
   AI_RAG_ENABLED,
   AI_EVIDENCE_ENABLED,
   AI_ASSIGNMENT_ENABLED,
+  AI_WORKER_CONCURRENCY,
 } = require('../../config/aiConfig');
 
 // ── Agent imports (will be populated in later phases) ──────────────────────
@@ -347,8 +350,19 @@ async function processGrievanceIntelligence(job) {
  * Called once from app.js on server boot.
  */
 function startWorker() {
-  registerWorker(processGrievanceIntelligence);
-  console.log('[Worker] Grievance Intelligence Orchestrator ready.');
+  const worker = new Worker(QUEUE_NAME, async (job) => processGrievanceIntelligence(job.data), {
+    connection: createRedisConnection(),
+    concurrency: AI_WORKER_CONCURRENCY,
+  });
+  worker.on('ready', () => console.log(`[Worker] BullMQ worker ready (concurrency ${AI_WORKER_CONCURRENCY}).`));
+  worker.on('completed', (job) => console.log(`[Worker] Job ${job.id} completed.`));
+  worker.on('failed', (job, err) => console.error(`[Worker] Job ${job?.id || 'unknown'} failed:`, err.message));
+  worker.on('error', (err) => console.error('[Worker] BullMQ error:', err.message));
+  return worker;
 }
 
-module.exports = { startWorker, processGrievanceIntelligence };
+async function stopWorker(worker) {
+  if (worker) await worker.close();
+}
+
+module.exports = { startWorker, stopWorker, processGrievanceIntelligence };
