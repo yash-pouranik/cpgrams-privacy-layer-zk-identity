@@ -27,15 +27,24 @@ const router = Router();
  */
 router.post('/', verifyToken, upload.array('files', 5), async (req, res) => {
   try {
-    const { pairwiseId } = req.citizen;
-    const { category, description, urls, evidenceUrls: rawEvidenceUrls, sourcePortal = 'cpgrams-web' } = req.body;
+    const {
+      category,
+      description,
+      urls,
+      evidenceUrls: rawEvidenceUrls,
+      sourcePortal = 'cpgrams-web',
+      orgType = 'central',
+      department: explicitDept,
+      priorRefNumber,
+      priorRefDate,
+    } = req.body;
 
     if (!category || !description) {
       return res.status(400).json({ error: 'category and description are required.' });
     }
 
     const caseId = await generateCaseId(pairwiseId);
-    const department = getDepartment(category);
+    let department = explicitDept && explicitDept !== 'NOT_LISTED' ? explicitDept : getDepartment(category);
 
     // Try to auto-assign an officer
     const officer = await autoAssign(category);
@@ -99,12 +108,15 @@ router.post('/', verifyToken, upload.array('files', 5), async (req, res) => {
       category,
       description,
       evidenceUrls: finalEvidenceUrls,
-      status: officer ? 'assigned' : 'pending',
+      status: 'received',
       assignedOfficerId: officer ? officer.officerId : null,
-      department,
+      department: department || (officer ? officer.department : 'General Administration'),
+      orgType: ['central', 'state', 'ut'].includes(orgType) ? orgType : 'central',
+      priorRefNumber: priorRefNumber ? String(priorRefNumber).trim() : null,
+      priorRefDate: priorRefDate ? String(priorRefDate).trim() : null,
       registrationPassword: hash,
       sourcePortal,
-      documentCount: uploadedUrls.length
+      documentCount: uploadedUrls.length,
     });
 
     // Audit log
