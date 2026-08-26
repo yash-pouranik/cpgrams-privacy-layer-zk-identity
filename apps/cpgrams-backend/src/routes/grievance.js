@@ -5,6 +5,7 @@ const bcrypt = require('bcryptjs');
 const { Router } = require('express');
 const fs = require('fs');
 const Case = require('../models/Case');
+const Document = require('../models/Document');
 const AuditLog = require('../models/AuditLog');
 const verifyToken = require('../middleware/verifyToken');
 const { upload } = require('../middleware/upload');
@@ -75,6 +76,22 @@ router.post('/', verifyToken, upload.array('files', 5), async (req, res) => {
     }
 
     const finalEvidenceUrls = [...uploadedUrls, ...externalUrls];
+
+    // Persist attached documents in Document collection
+    if (req.files && req.files.length > 0) {
+      for (const file of req.files) {
+        await Document.create({
+          caseId,
+          fileName: file.filename,
+          originalName: file.originalname,
+          mimeType: file.mimetype,
+          sizeBytes: file.size,
+          storagePath: file.path,
+          uploadedBy: pairwiseId,
+          uploadedByRole: 'citizen',
+        });
+      }
+    }
 
     const newCase = await Case.create({
       caseId,

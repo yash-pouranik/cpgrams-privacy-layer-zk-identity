@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Textarea } from "@/components/ui/textarea";
 import { ConfirmModal } from "@/components/ConfirmModal";
 import { useToast } from "@/hooks/use-toast";
-import { Download, Upload, HelpCircle, ShieldAlert, ArrowLeft, CheckCircle2 } from "lucide-react";
+import { Download, Upload, HelpCircle, ShieldAlert, ArrowLeft, Clock, FileCheck, Loader2 } from "lucide-react";
 import Link from "next/link";
 
 interface CaseDetail {
@@ -29,6 +29,7 @@ interface Document {
   originalName: string;
   mimeType: string;
   sizeBytes: number;
+  uploadedByRole: "citizen" | "officer";
   createdAt: string;
 }
 
@@ -57,6 +58,7 @@ export default function OfficerCaseDetail() {
   const [showDisclosureConfirm, setShowDisclosureConfirm] = useState(false);
   
   const [documents, setDocuments] = useState<Document[]>([]);
+  const [downloadingDocId, setDownloadingDocId] = useState<string | null>(null);
   const [reminders, setReminders] = useState<Reminder[]>([]);
   const [uploadingDoc, setUploadingDoc] = useState(false);
   
@@ -130,6 +132,42 @@ export default function OfficerCaseDetail() {
     setOfficerToken(token);
     fetchCase(token);
   }, [fetchCase, router]);
+
+  const handleDownloadOfficerDoc = async (doc: Document) => {
+    setDownloadingDocId(doc._id);
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+      const res = await fetch(`${apiUrl}/officer/case/${caseId}/documents/${doc._id}/download`, {
+        headers: { Authorization: `Bearer ${officerToken}` },
+      });
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(errJson.error || "Failed to download file");
+      }
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = doc.originalName || `document-${doc._id}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      toast({
+        title: "Download Complete",
+        description: `Saved ${doc.originalName}`,
+      });
+    } catch (err: any) {
+      console.error("Download error:", err);
+      toast({
+        title: "Download Failed",
+        description: err.message || "Could not download document.",
+        variant: "destructive",
+      });
+    } finally {
+      setDownloadingDocId(null);
+    }
+  };
 
   const handleStatusUpdate = async () => {
     if (!statusInput || statusInput === grievance?.status || !caseId) return;
@@ -293,8 +331,8 @@ export default function OfficerCaseDetail() {
         </div>
       )}
 
-      <Card className="bg-[#FFFFFF] border-[#E5E7EB] shadow-sm mb-8">
-        <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-6 border-b border-[#E5E7EB]">
+      <Card className="bg-[#FFFFFF] border-[#E5E7EB] shadow-sm mb-8 rounded-2xl overflow-hidden">
+        <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-6 border-b border-[#E5E7EB] bg-gray-50/40 p-6">
           <div>
             <div className="font-mono text-3xl font-bold text-[#5E6AD2] mb-2">
               {grievance.caseId}
@@ -303,8 +341,8 @@ export default function OfficerCaseDetail() {
               <Badge variant="secondary" className="bg-[#E5E7EB] text-[#111827] font-normal hover:bg-[#E5E7EB]">
                 {grievance.category}
               </Badge>
-              <span className="text-sm text-[#6B7280]">
-                • {new Date(grievance.createdAt).toLocaleDateString()}
+              <span className="text-xs text-[#6B7280] flex items-center gap-1">
+                <Clock className="w-3.5 h-3.5" /> {new Date(grievance.createdAt).toLocaleString()}
               </span>
             </div>
           </div>
@@ -332,19 +370,22 @@ export default function OfficerCaseDetail() {
             </Button>
           </div>
         </CardHeader>
-        <CardContent className="pt-6 space-y-6">
+        <CardContent className="p-6 space-y-6">
           <div>
-            <h3 className="text-sm font-semibold text-[#111827] mb-2 uppercase tracking-wider">Description</h3>
-            <p className="text-[#6B7280] whitespace-pre-wrap leading-relaxed">
+            <h3 className="text-xs font-bold text-[#111827] mb-2 uppercase tracking-wider">Citizen Grievance Description</h3>
+            <p className="text-sm text-[#4B5563] whitespace-pre-wrap leading-relaxed bg-gray-50 p-4 rounded-xl border border-gray-100">
               {grievance.description}
             </p>
           </div>
           
+          {/* Documents & Case Evidence Timeline */}
           <div>
-            <div className="flex justify-between items-center mb-2">
-              <h3 className="text-sm font-semibold text-[#111827] uppercase tracking-wider">Evidence & Reports</h3>
+            <div className="flex justify-between items-center mb-3">
+              <h3 className="text-xs font-bold text-[#111827] uppercase tracking-wider flex items-center gap-1.5">
+                <FileCheck className="w-4 h-4 text-indigo-600" /> Evidence & Investigation Documents ({documents.length})
+              </h3>
               <div className="relative overflow-hidden inline-block">
-                <Button variant="outline" size="sm" disabled={uploadingDoc} className="text-xs flex items-center gap-1">
+                <Button variant="outline" size="sm" disabled={uploadingDoc} className="text-xs flex items-center gap-1 border-indigo-200 text-indigo-600 hover:bg-indigo-50">
                   <Upload className="w-3.5 h-3.5" /> Upload Investigation Report
                 </Button>
                 <input 
@@ -357,23 +398,47 @@ export default function OfficerCaseDetail() {
             </div>
             
             {documents.length > 0 ? (
-              <div className="flex flex-col gap-2">
-                {documents.map(doc => (
-                  <div key={doc._id} className="flex justify-between items-center bg-gray-50 p-3 rounded-xl border border-gray-200">
-                    <span className="text-sm font-mono text-gray-700">{doc.originalName || "Document"}</span>
-                    <a
-                      href={`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/officer/case/${caseId}/documents/${doc._id}/download`}
-                      className="text-[#5E6AD2] hover:text-[#4F5BC0] text-xs font-semibold flex items-center gap-1 bg-indigo-50 px-3 py-1.5 rounded-lg"
-                      target="_blank"
-                      rel="noreferrer"
+              <div className="space-y-2.5">
+                {documents.map((doc) => (
+                  <div key={doc._id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-xl border border-gray-200 hover:border-indigo-200 transition shadow-2xs">
+                    <div className="flex items-start gap-3 min-w-0">
+                      <div className="p-2.5 bg-indigo-50 text-[#5E6AD2] rounded-xl shrink-0 mt-0.5">
+                        <FileCheck className="w-5 h-5" />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-sm font-semibold text-gray-900 font-mono truncate">{doc.originalName || "Document"}</span>
+                          <Badge className={doc.uploadedByRole === 'citizen' ? "bg-emerald-100 text-emerald-800 border-emerald-200 text-[10px]" : "bg-indigo-100 text-indigo-800 border-indigo-200 text-[10px]"}>
+                            {doc.uploadedByRole === 'citizen' ? "Citizen Evidence" : "Officer Report"}
+                          </Badge>
+                        </div>
+                        <div className="flex items-center gap-3 text-xs text-gray-500 mt-1">
+                          <span>{(doc.sizeBytes / 1024).toFixed(1)} KB</span>
+                          <span>•</span>
+                          <span className="flex items-center gap-1">
+                            <Clock className="w-3 h-3" /> {new Date(doc.createdAt).toLocaleString()}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleDownloadOfficerDoc(doc)}
+                      disabled={downloadingDocId === doc._id}
+                      className="text-xs text-[#5E6AD2] border-indigo-200 hover:bg-indigo-50 shrink-0 self-start sm:self-auto flex items-center gap-1.5 h-8 px-3"
                     >
-                      <Download className="w-3.5 h-3.5" /> Download
-                    </a>
+                      {downloadingDocId === doc._id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
+                      <span>{downloadingDocId === doc._id ? "Downloading..." : "Download File"}</span>
+                    </Button>
                   </div>
                 ))}
               </div>
             ) : (
-              <p className="text-xs text-gray-500">No documents uploaded yet.</p>
+              <p className="text-xs text-gray-500 bg-gray-50 p-4 rounded-xl border border-dashed border-gray-200 text-center">
+                No documents uploaded yet.
+              </p>
             )}
           </div>
         </CardContent>
@@ -391,14 +456,14 @@ export default function OfficerCaseDetail() {
             value={clarificationContent} 
             onChange={e => setClarificationContent(e.target.value)} 
             placeholder="e.g. Please provide the exact pole number or landmark..." 
-            className="resize-none bg-white min-h-[60px]"
+            className="resize-none bg-white min-h-[60px] text-xs"
           />
           <Button
             onClick={() => {
               if (clarificationContent.trim()) setShowClarificationConfirm(true);
             }}
             disabled={!clarificationContent.trim()}
-            className="bg-[#111827] hover:bg-gray-800 text-white shrink-0 self-end sm:self-auto text-xs"
+            className="bg-[#111827] hover:bg-gray-800 text-white shrink-0 self-end sm:self-auto text-xs px-4"
           >
             Request Clarification
           </Button>
@@ -408,12 +473,16 @@ export default function OfficerCaseDetail() {
           <div className="space-y-3 pt-2">
             <h3 className="text-xs font-bold text-gray-700 uppercase tracking-wider">Timeline of Reminders & Responses</h3>
             {reminders.map(r => (
-              <div key={r._id} className="p-3 border border-gray-200 rounded-xl bg-white text-xs space-y-1">
-                <div className="flex justify-between text-gray-500">
-                  <span className="font-bold uppercase text-[#5E6AD2]">{r.type.replace(/_/g, ' ')}</span>
-                  <span>{new Date(r.createdAt).toLocaleString()}</span>
+              <div key={r._id} className="p-3.5 border border-gray-200 rounded-xl bg-white text-xs space-y-1.5 shadow-2xs">
+                <div className="flex justify-between items-center text-gray-500">
+                  <span className="font-bold uppercase tracking-wider text-[#5E6AD2] bg-indigo-50 px-2 py-0.5 rounded-md">
+                    {r.type.replace(/_/g, ' ')}
+                  </span>
+                  <span className="flex items-center gap-1 font-mono text-[11px]">
+                    <Clock className="w-3 h-3" /> {new Date(r.createdAt).toLocaleString()}
+                  </span>
                 </div>
-                <p className="text-gray-800">{r.content}</p>
+                <p className="text-gray-800 leading-relaxed">{r.content}</p>
               </div>
             ))}
           </div>
@@ -449,7 +518,7 @@ export default function OfficerCaseDetail() {
                   value={justification}
                   onChange={(e) => setJustification(e.target.value)}
                   placeholder="E.g., High Court Order Ref: HC-2026-881 for formal evidentiary submission"
-                  className="bg-[#F9FAFB] min-h-[90px]"
+                  className="bg-[#F9FAFB] min-h-[90px] text-xs"
                 />
               </div>
             </div>

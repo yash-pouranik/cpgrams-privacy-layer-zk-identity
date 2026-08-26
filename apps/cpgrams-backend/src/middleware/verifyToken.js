@@ -34,6 +34,8 @@ async function verifyToken(req, res, next) {
     const authHeader = req.headers.authorization;
     if (authHeader && authHeader.startsWith('Bearer ')) {
       token = authHeader.slice(7);
+    } else if (req.query && req.query.token) {
+      token = req.query.token;
     } else if (req.session && req.session.accessToken) {
       token = req.session.accessToken;
     }
