@@ -36,6 +36,8 @@ export default function OfficerLoginPage() {
 
       const data = await res.json();
       if (data.token) {
+        // Enforce role isolation: Clear any citizen session
+        sessionStorage.removeItem("token");
         sessionStorage.setItem("officerToken", data.token);
         sessionStorage.setItem("officerUser", JSON.stringify(data.officer));
         router.push("/officer");

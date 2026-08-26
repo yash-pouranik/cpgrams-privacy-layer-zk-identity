@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Input } from "@/components/ui/input";
 import { ConfirmModal } from "@/components/ConfirmModal";
 import { useToast } from "@/hooks/use-toast";
-import { Scale, ShieldCheck, ShieldAlert, CheckCircle2, XCircle, FileText } from "lucide-react";
+import { Scale, ShieldCheck, ShieldAlert, CheckCircle2, XCircle, KeyRound, LogOut, Lock } from "lucide-react";
 
 interface DisclosureRequest {
   _id: string;
@@ -20,8 +20,12 @@ interface DisclosureRequest {
 }
 
 export default function DisclosureAuthorityConsole() {
+  const [authorityToken, setAuthorityToken] = useState<string>("");
+  const [inputToken, setInputToken] = useState<string>("");
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [requests, setRequests] = useState<DisclosureRequest[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
   const [revealed, setRevealed] = useState<{ [id: string]: string }>({});
   const { toast } = useToast();
   
@@ -31,29 +35,70 @@ export default function DisclosureAuthorityConsole() {
 
   const [activeRejectReq, setActiveRejectReq] = useState<DisclosureRequest | null>(null);
   const [rejecting, setRejecting] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
-  const token = process.env.NEXT_PUBLIC_AUTHORITY_TOKEN || "authority-secret-change-me";
+  const defaultSecret = process.env.NEXT_PUBLIC_AUTHORITY_TOKEN || "authority-secret-change-me";
 
-  const fetchRequests = async () => {
+  const fetchRequestsWithToken = useCallback(async (tokenToUse: string) => {
+    setLoading(true);
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
       const res = await fetch(`${apiUrl}/disclosure/pending`, {
-        headers: { "X-Authority-Token": token },
+        headers: { "X-Authority-Token": tokenToUse },
       });
       if (res.ok) {
         const data = await res.json();
         setRequests(data);
+        setIsAuthenticated(true);
+        setAuthorityToken(tokenToUse);
+        sessionStorage.setItem("authorityToken", tokenToUse);
+        
+        // Strict Role Isolation: Purge any citizen or officer session
+        sessionStorage.removeItem("token");
+        sessionStorage.removeItem("officerToken");
+        sessionStorage.removeItem("officerUser");
+      } else {
+        setIsAuthenticated(false);
+        setAuthError("Invalid Authority Secret. Access Denied.");
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to fetch disclosure requests:", err);
+      setAuthError(err.message || "Failed to reach backend server.");
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    fetchRequests();
-  }, []);
+    const savedToken = sessionStorage.getItem("authorityToken");
+    if (savedToken) {
+      fetchRequestsWithToken(savedToken);
+    }
+  }, [fetchRequestsWithToken]);
+
+  const handleUnlockConsole = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!inputToken.trim()) return;
+    setAuthError(null);
+    fetchRequestsWithToken(inputToken.trim());
+  };
+
+  const handleQuickFillDemoToken = () => {
+    setInputToken(defaultSecret);
+    setAuthError(null);
+  };
+
+  const handleLogout = () => {
+    sessionStorage.removeItem("authorityToken");
+    setIsAuthenticated(false);
+    setAuthorityToken("");
+    setInputToken("");
+    setShowLogoutConfirm(false);
+    toast({
+      title: "Console Locked",
+      description: "Disclosure Authority session ended successfully.",
+    });
+  };
 
   const handleExecuteApprove = async () => {
     if (!activeApproveReq || !courtOrderRefInput.trim()) return;
@@ -65,7 +110,7 @@ export default function DisclosureAuthorityConsole() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "X-Authority-Token": token,
+          "X-Authority-Token": authorityToken,
         },
         body: JSON.stringify({ courtOrderRef: courtOrderRefInput.trim() }),
       });
@@ -108,7 +153,7 @@ export default function DisclosureAuthorityConsole() {
       const res = await fetch(`${apiUrl}/disclosure/${activeRejectReq._id}/reject`, {
         method: "POST",
         headers: {
-          "X-Authority-Token": token,
+          "X-Authority-Token": authorityToken,
         },
       });
 
@@ -127,14 +172,75 @@ export default function DisclosureAuthorityConsole() {
     }
   };
 
-  if (loading) {
+  // 1. If not authenticated, render High-Security Passcode Gate
+  if (!isAuthenticated) {
     return (
-      <div className="flex justify-center items-center flex-1 min-h-[60vh]">
-        <div className="w-8 h-8 border-4 border-[#E5E7EB] border-t-red-600 rounded-full animate-spin"></div>
+      <div className="max-w-md mx-auto w-full px-6 py-16 flex-1 flex flex-col justify-center">
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center justify-center p-3.5 bg-red-50 border border-red-200 rounded-2xl mb-3 text-red-600 shadow-sm">
+            <Scale className="w-8 h-8" />
+          </div>
+          <h1 className="text-2xl font-bold text-[#111827]">Disclosure Authority Console</h1>
+          <p className="text-xs text-[#6B7280] mt-1 max-w-sm mx-auto">
+            Restricted judicial desk for court-authorized citizen identity reverse-lookups.
+          </p>
+        </div>
+
+        <Card className="bg-[#FFFFFF] border-[#E5E7EB] shadow-md rounded-2xl overflow-hidden">
+          <CardHeader className="pb-4 border-b border-[#E5E7EB] bg-gray-50/50">
+            <CardTitle className="text-base text-[#111827] flex items-center gap-2">
+              <Lock className="w-4 h-4 text-red-600" /> Enter Authority Master Secret
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-6 space-y-4">
+            <form onSubmit={handleUnlockConsole} className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-[#374151] flex items-center gap-1.5">
+                  <KeyRound className="w-3.5 h-3.5 text-[#6B7280]" /> Master Token Secret
+                </label>
+                <Input
+                  type="password"
+                  value={inputToken}
+                  onChange={(e) => setInputToken(e.target.value)}
+                  placeholder="Enter authority secret..."
+                  className="bg-[#F9FAFB] font-mono text-xs"
+                  required
+                />
+              </div>
+
+              {authError && (
+                <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-xs rounded-xl flex items-center gap-2">
+                  <ShieldAlert className="w-4 h-4 shrink-0" />
+                  <span>{authError}</span>
+                </div>
+              )}
+
+              <Button
+                type="submit"
+                disabled={loading || !inputToken.trim()}
+                className="w-full bg-red-600 hover:bg-red-700 text-white font-medium text-xs h-10 shadow-sm"
+              >
+                {loading ? "Authenticating..." : "Unlock Authority Console"}
+              </Button>
+            </form>
+
+            <div className="pt-3 border-t border-gray-100 flex items-center justify-between">
+              <span className="text-[11px] text-gray-500">Evaluation Demo:</span>
+              <button
+                type="button"
+                onClick={handleQuickFillDemoToken}
+                className="text-xs font-semibold text-red-600 hover:text-red-700 hover:underline flex items-center gap-1"
+              >
+                ⚡ Quick Fill Authority Token
+              </button>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }
 
+  // 2. Authenticated Console
   return (
     <div className="max-w-4xl mx-auto w-full px-6 py-12 flex-1">
       <div className="border-b border-[#E5E7EB] pb-6 mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -153,16 +259,32 @@ export default function DisclosureAuthorityConsole() {
             </div>
           </div>
         </div>
-        <Badge variant="destructive" className="bg-red-600 text-white font-mono text-xs px-3 py-1 self-start sm:self-auto">
-          Judicial Authority Level
-        </Badge>
+
+        <div className="flex items-center gap-3 self-start sm:self-auto">
+          <Badge variant="destructive" className="bg-red-600 text-white font-mono text-xs px-3 py-1">
+            Judicial Authority Session Active
+          </Badge>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowLogoutConfirm(true)}
+            className="text-xs text-red-600 border-red-200 hover:bg-red-50 flex items-center gap-1.5"
+          >
+            <LogOut className="w-3.5 h-3.5" /> Lock Console
+          </Button>
+        </div>
       </div>
 
-      <div className="mb-6">
-        <h2 className="text-base font-bold text-[#111827]">Pending Disclosure Requests</h2>
-        <p className="text-xs text-[#6B7280]">
-          Department officers cannot view citizen identities without approval from this console.
-        </p>
+      <div className="mb-6 flex items-center justify-between">
+        <div>
+          <h2 className="text-base font-bold text-[#111827]">Pending Disclosure Requests</h2>
+          <p className="text-xs text-[#6B7280]">
+            Department officers cannot view citizen identities without approval from this console.
+          </p>
+        </div>
+        <Badge variant="outline" className="text-xs px-2.5 py-1 font-semibold text-red-700 bg-red-50 border-red-200">
+          {requests.length} Pending
+        </Badge>
       </div>
 
       {requests.length === 0 ? (
@@ -303,6 +425,18 @@ export default function DisclosureAuthorityConsole() {
             <p className="text-gray-500">The officer will NOT be granted access to citizen PII and the case will remain strictly pseudonymous.</p>
           </div>
         }
+      />
+
+      {/* Logout / Lock Console Confirmation Modal */}
+      <ConfirmModal
+        isOpen={showLogoutConfirm}
+        onClose={() => setShowLogoutConfirm(false)}
+        onConfirm={handleLogout}
+        title="Lock Disclosure Authority Console?"
+        icon="logout"
+        variant="destructive"
+        confirmText="Lock Console"
+        description="Are you sure you want to lock the judicial console? You will need to enter the Master Authority Secret again to access pending court disclosure files."
       />
     </div>
   );

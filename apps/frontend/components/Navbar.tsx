@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { LogOut, Menu, X, ArrowRight } from "lucide-react";
+import { LogOut, Menu, X, ArrowRight, Shield, Scale, UserCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AshokaEmblem } from "./AshokaEmblem";
 import { ConfirmModal } from "./ConfirmModal";
@@ -13,14 +13,18 @@ export function Navbar() {
   const router = useRouter();
   const [hasCitizenToken, setHasCitizenToken] = useState(false);
   const [hasOfficerToken, setHasOfficerToken] = useState(false);
+  const [hasAuthorityToken, setHasAuthorityToken] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [logoutType, setLogoutType] = useState<"citizen" | "officer" | null>(null);
+  const [logoutType, setLogoutType] = useState<"citizen" | "officer" | "authority" | null>(null);
 
   useEffect(() => {
     const token = sessionStorage.getItem("token");
     const officerToken = sessionStorage.getItem("officerToken");
+    const authorityToken = sessionStorage.getItem("authorityToken");
+    
     setHasCitizenToken(!!token);
     setHasOfficerToken(!!officerToken);
+    setHasAuthorityToken(!!authorityToken);
     setMobileMenuOpen(false);
   }, [pathname]);
 
@@ -39,7 +43,19 @@ export function Navbar() {
     router.push("/officer/login");
   };
 
+  const handleAuthorityLogout = () => {
+    sessionStorage.removeItem("authorityToken");
+    setHasAuthorityToken(false);
+    setLogoutType(null);
+    router.push("/disclosure");
+  };
+
   const loginUrl = `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/auth/login`;
+
+  // Determine active context to prevent overlapping buttons
+  const isOfficerRoute = pathname.startsWith("/officer");
+  const isDisclosureRoute = pathname.startsWith("/disclosure");
+  const isCitizenRoute = pathname.startsWith("/dashboard") || pathname.startsWith("/case") || pathname.startsWith("/grievance");
 
   return (
     <nav className="border-b border-slate-200/80 bg-white/95 backdrop-blur-md sticky top-0 z-50 text-slate-900">
@@ -93,7 +109,7 @@ export function Navbar() {
             <Link
               href="/officer"
               className={`hover:text-slate-950 transition-colors ${
-                pathname.startsWith("/officer") ? "text-[#EA580C] font-bold" : ""
+                isOfficerRoute ? "text-[#EA580C] font-bold" : ""
               }`}
             >
               Officer Portal
@@ -102,22 +118,53 @@ export function Navbar() {
             <Link
               href="/disclosure"
               className={`hover:text-slate-950 transition-colors ${
-                pathname === "/disclosure" ? "text-[#EA580C] font-bold" : ""
+                isDisclosureRoute ? "text-[#EA580C] font-bold" : ""
               }`}
             >
               Disclosure
             </Link>
           </div>
 
-          {/* Clean Single Action CTA */}
+          {/* Clean Single Action CTA - Exclusively renders ONE active session role */}
           <div className="hidden md:flex items-center gap-3">
-            {hasCitizenToken ? (
+            {isDisclosureRoute && hasAuthorityToken ? (
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-mono font-semibold text-red-700 bg-red-50 border border-red-200 px-3 py-1.5 rounded-sm flex items-center gap-1.5">
+                  <Scale className="w-3.5 h-3.5" /> Authority Desk
+                </span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setLogoutType("authority")}
+                  className="text-xs text-red-600 hover:bg-red-50 h-8 px-2"
+                >
+                  <LogOut className="w-3.5 h-3.5 mr-1" /> Lock
+                </Button>
+              </div>
+            ) : isOfficerRoute && hasOfficerToken ? (
+              <div className="flex items-center gap-2">
+                <Link
+                  href="/officer"
+                  className="text-xs font-semibold text-slate-900 bg-slate-100 hover:bg-slate-200 px-3.5 py-2 rounded-sm transition-colors flex items-center gap-1.5"
+                >
+                  <UserCheck className="w-3.5 h-3.5 text-indigo-600" /> Officer Desk
+                </Link>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setLogoutType("officer")}
+                  className="text-xs text-red-600 hover:bg-red-50 h-8 px-2"
+                >
+                  <LogOut className="w-3.5 h-3.5 mr-1" /> Logout
+                </Button>
+              </div>
+            ) : hasCitizenToken ? (
               <div className="flex items-center gap-2">
                 <Link
                   href="/dashboard"
-                  className="text-xs font-semibold text-slate-900 bg-slate-100 hover:bg-slate-200 px-3.5 py-2 rounded-sm transition-colors"
+                  className="text-xs font-semibold text-slate-900 bg-slate-100 hover:bg-slate-200 px-3.5 py-2 rounded-sm transition-colors flex items-center gap-1.5"
                 >
-                  Citizen Dashboard
+                  <Shield className="w-3.5 h-3.5 text-emerald-600" /> Citizen Desk
                 </Link>
                 <Button
                   variant="ghost"
@@ -132,9 +179,9 @@ export function Navbar() {
               <div className="flex items-center gap-2">
                 <Link
                   href="/officer"
-                  className="text-xs font-semibold text-slate-900 bg-slate-100 hover:bg-slate-200 px-3.5 py-2 rounded-sm transition-colors"
+                  className="text-xs font-semibold text-slate-900 bg-slate-100 hover:bg-slate-200 px-3.5 py-2 rounded-sm transition-colors flex items-center gap-1.5"
                 >
-                  Officer Dashboard
+                  <UserCheck className="w-3.5 h-3.5 text-indigo-600" /> Officer Desk
                 </Link>
                 <Button
                   variant="ghost"
@@ -219,6 +266,14 @@ export function Navbar() {
               >
                 <LogOut className="w-3.5 h-3.5 mr-1" /> Logout Officer
               </Button>
+            ) : hasAuthorityToken ? (
+              <Button
+                variant="outline"
+                onClick={() => setLogoutType("authority")}
+                className="w-full text-xs text-red-600 border-red-200 hover:bg-red-50"
+              >
+                <LogOut className="w-3.5 h-3.5 mr-1" /> Lock Authority Console
+              </Button>
             ) : (
               <Button asChild className="w-full bg-[#F6821F] hover:bg-[#E06D0C] text-slate-950 font-bold text-xs h-9 rounded-sm">
                 <a href={loginUrl}>Lodge Grievance (CivID SSO)</a>
@@ -232,15 +287,29 @@ export function Navbar() {
       <ConfirmModal
         isOpen={logoutType !== null}
         onClose={() => setLogoutType(null)}
-        onConfirm={logoutType === "citizen" ? handleCitizenLogout : handleOfficerLogout}
-        title={logoutType === "citizen" ? "Log Out of Citizen Portal?" : "Log Out of Officer Portal?"}
+        onConfirm={
+          logoutType === "citizen"
+            ? handleCitizenLogout
+            : logoutType === "officer"
+            ? handleOfficerLogout
+            : handleAuthorityLogout
+        }
+        title={
+          logoutType === "citizen"
+            ? "Log Out of Citizen Portal?"
+            : logoutType === "officer"
+            ? "Log Out of Officer Portal?"
+            : "Lock Disclosure Authority Console?"
+        }
         icon="logout"
         variant="destructive"
-        confirmText="Yes, Log Out"
+        confirmText={logoutType === "authority" ? "Lock Console" : "Yes, Log Out"}
         description={
           logoutType === "citizen"
             ? "Are you sure you want to end your active citizen session? You can log in again anytime via CivID SSO."
-            : "Are you sure you want to log out of the Officer Portal? Any unsaved case notes will be discarded."
+            : logoutType === "officer"
+            ? "Are you sure you want to log out of the Officer Portal? Any unsaved case notes will be discarded."
+            : "Are you sure you want to lock the judicial console? You will need to enter the Master Authority Secret again to access pending court files."
         }
       />
     </nav>

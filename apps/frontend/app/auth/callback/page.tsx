@@ -25,6 +25,9 @@ function AuthCallbackContent() {
           
           const data = await res.json();
           if (data.token) {
+            // Enforce role isolation: Clear any officer session
+            sessionStorage.removeItem("officerToken");
+            sessionStorage.removeItem("officerUser");
             sessionStorage.setItem("token", data.token);
             router.push("/dashboard");
           } else {
