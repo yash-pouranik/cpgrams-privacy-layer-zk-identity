@@ -10,6 +10,14 @@ grievanceQueue.on('error', (err) => console.error('[Queue] BullMQ queue error:',
 
 async function enqueueAiAnalysis(caseId, meta = {}) {
   try {
+    const existing = await grievanceQueue.getJob(caseId);
+    if (existing && meta.forceReprocess) {
+      const state = await existing.getState();
+      if (['completed', 'failed', 'delayed'].includes(state)) {
+        await existing.remove();
+        console.log(`[Queue] Removed stale ${state} job for ${caseId} before reprocessing.`);
+      }
+    }
     const job = await grievanceQueue.add('analyze-grievance', {
       caseId,
       meta,

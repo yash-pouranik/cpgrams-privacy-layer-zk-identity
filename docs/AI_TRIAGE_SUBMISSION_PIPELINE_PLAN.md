@@ -15,8 +15,9 @@ current repository status is:
 | Phase 1 AI foundation | Complete: Redis/BullMQ implementation is present; live Redis smoke test requires Docker running |
 | Phase 2 Agent 1 triage | Complete: structured triage, deterministic fallback, worker persistence, AI-aware routing, live OpenAI verification, and focused tests are implemented |
 | Phase 3: Agent 3 semantic quality | Core implementation complete: embeddings, Pinecone adapter, quality agent, worker integration, citizen/officer visibility, live quality output, provider compatibility fixes, and focused tests are implemented; hosted multi-case Pinecone duplicate retrieval should still be re-verified |
-| Phase 4: Agent 2 document intelligence | In progress: document agent, PDF extraction, multimodal image input, worker integration, authenticated per-document analysis API, and focused tests are implemented; production OCR/vision verification and officer document-analysis UI remain |
-| Phase 5-8 | Not started |
+| Phase 4: Agent 2 document intelligence | In progress: document agent, PDF extraction, multimodal image input, worker integration, authenticated per-document analysis API, officer document-analysis UI, and focused tests are implemented; live OCR/vision verification remains |
+| Phase 5: Agent 5 evidence enrichment | In progress: scope control, Tavily search integration, credibility/confidence ranker, snapshot hashing, corroboration detection, Evidence persistence, authenticated evidence API, officer evidence UI, and focused tests are implemented; live Tavily verification remains |
+| Phase 6-8 | Not started |
 
 The implementation intentionally keeps grievance creation synchronous and runs AI
 processing asynchronously. AI failures must never block the citizen submission path.
@@ -430,7 +431,7 @@ Implementation notes:
 
 ### New Files
 
-#### [NEW] `apps/cpgrams-backend/src/ai/agents/evidence/evidence.agent.js`
+#### [NEW] `apps/cpgrams-backend/src/ai/agents/evidence/evidence.agent.js` ✅
 - **Scope Control First**: Not every complaint needs web search
   - Useful: infrastructure, corruption, public project, environmental, contractor, govt scheme
   - Skip: personal dispute, password issue, simple service request
@@ -454,9 +455,9 @@ Implementation notes:
 - **Snapshot**: For each evidence item, store `title + url + excerpt + retrievedAt + SHA-256(content)` in `Evidence` collection
 - **Security**: Web content is injected as tool-result data, NEVER as system instructions (prompt injection defense)
 
-#### [NEW] `apps/cpgrams-backend/src/ai/agents/evidence/evidence.schema.js`
-#### [NEW] `apps/cpgrams-backend/src/ai/agents/evidence/evidence.prompt.js`
-#### [NEW] `apps/cpgrams-backend/src/ai/services/evidenceRanker.js`
+#### [NEW] `apps/cpgrams-backend/src/ai/agents/evidence/evidence.schema.js` ✅
+#### [NEW] `apps/cpgrams-backend/src/ai/agents/evidence/evidence.prompt.js` ✅
+#### [NEW] `apps/cpgrams-backend/src/ai/services/evidenceRanker.js` ✅
 - Source credibility heuristic engine
 - Cross-source corroboration detector
 - Evidence confidence calculator
@@ -467,6 +468,12 @@ Implementation notes:
 - Integration test: Tavily returns results → Evidence documents created with scores
 - Integration test: `.gov.in` source scores higher than random blog
 - Security test: Web content containing prompt injection text is treated as data, not instructions
+
+Implementation notes:
+- Agent 5 skips personal/password/service-specific complaints using deterministic scope control before calling Tavily.
+- Search results are treated as untrusted data, scored with the documented relevance/credibility/geography/time/entity formula, and stored as `REVIEW_PENDING` evidence with a SHA-256 snapshot hash.
+- `AI_EVIDENCE_ENABLED` remains false by default until a live Tavily-key verification is completed.
+- Document uploads re-enqueue the case analysis job, and the worker lock duration is configurable to prevent long AI/Pinecone stages from losing their BullMQ lock.
 
 ---
 

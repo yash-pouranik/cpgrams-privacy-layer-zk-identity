@@ -24,6 +24,7 @@ const OPENAI_MODEL_REASONING = process.env.OPENAI_MODEL_REASONING || 'gpt-5.6-lu
 // Worker tuning
 const AI_WORKER_CONCURRENCY = parseInt(process.env.AI_WORKER_CONCURRENCY || '3', 10);
 const AI_MAX_RETRIES        = parseInt(process.env.AI_MAX_RETRIES        || '3', 10);
+const AI_JOB_LOCK_DURATION_MS = parseInt(process.env.AI_JOB_LOCK_DURATION_MS || '300000', 10);
 const TAVILY_MAX_RESULTS    = parseInt(process.env.TAVILY_MAX_RESULTS    || '5', 10);
 
 module.exports = {
@@ -38,5 +39,6 @@ module.exports = {
   OPENAI_MODEL_REASONING,
   AI_WORKER_CONCURRENCY,
   AI_MAX_RETRIES,
+  AI_JOB_LOCK_DURATION_MS,
   TAVILY_MAX_RESULTS,
 };

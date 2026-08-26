@@ -6,6 +6,7 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { ChatThread } from "@/components/ChatThread";
 import { CaseProgressStepper } from "@/components/CaseProgressStepper";
 import { NextActionGuide } from "@/components/NextActionGuide";
+import { CaseSectionTabs, type CaseTab } from "@/components/CaseSectionTabs";
 import { AiIntelligencePanel } from "@/components/AiIntelligencePanel";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -79,6 +80,7 @@ export default function CitizenCaseDetail() {
   const [feedbackComment, setFeedbackComment] = useState("");
   const [submittingFeedback, setSubmittingFeedback] = useState(false);
   const [showFeedbackConfirm, setShowFeedbackConfirm] = useState(false);
+  const [activeTab, setActiveTab] = useState<CaseTab>("overview");
 
   // First Appeal (Stage 9 & 10)
   const [appealReason, setAppealReason] = useState("");
@@ -306,16 +308,16 @@ export default function CitizenCaseDetail() {
         </span>
       </div>
 
+      <CaseSectionTabs activeTab={activeTab} onChange={setActiveTab} />
+
       {/* Visual Lifecycle Stepper & Contextual Next Action Guide */}
-      <div className="space-y-4 mb-8">
+      <div id="case-overview" className={`${activeTab === "overview" ? "" : "hidden"} scroll-mt-24 space-y-4 mb-8`}>
         <CaseProgressStepper
           status={grievance.status}
           department={grievance.department}
           feedbackSubmitted={grievance.feedbackSubmitted}
           appealStatus={grievance.appealStatus}
         />
-
-        <AiIntelligencePanel caseId={caseId} token={token} />
 
         <NextActionGuide
           status={grievance.status}
@@ -331,8 +333,10 @@ export default function CitizenCaseDetail() {
         />
       </div>
 
+      <div id="case-intelligence" className={`${activeTab === "intelligence" ? "" : "hidden"} scroll-mt-24 mb-8`}><AiIntelligencePanel caseId={caseId} token={token} /></div>
+
       {/* Official Action Taken Report (ATR) - Stages 7 & 8 */}
-      {(grievance.atrRemarks || isDisposed || grievance.status === 'appealed') && (
+      {activeTab === "overview" && (grievance.atrRemarks || isDisposed || grievance.status === 'appealed') && (
         <div className="bg-emerald-50/80 border border-emerald-300 rounded-2xl p-6 mb-8 shadow-sm">
           <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
             <div className="flex items-center gap-2.5">
@@ -368,7 +372,7 @@ export default function CitizenCaseDetail() {
       )}
 
       {/* First Appeal Under Review Card - Stage 10 */}
-      {(grievance.status === 'appealed' || (grievance.appealStatus && grievance.appealStatus !== 'none')) && (
+      {activeTab === "actions" && (grievance.status === 'appealed' || (grievance.appealStatus && grievance.appealStatus !== 'none')) && (
         <div className="bg-red-50/90 border-2 border-red-300 rounded-2xl p-6 mb-8 shadow-sm">
           <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
             <div className="flex items-center gap-2.5">
@@ -412,9 +416,9 @@ export default function CitizenCaseDetail() {
       )}
 
       {/* Main Grievance Details Card */}
-      <Card className="bg-[#FFFFFF] border-[#E5E7EB] shadow-sm mb-8 rounded-2xl overflow-hidden">
+      <Card className={`${activeTab === "overview" || activeTab === "evidence" ? "" : "hidden"} bg-[#FFFFFF] border-[#E5E7EB] shadow-sm mb-8 rounded-2xl overflow-hidden`}>
         <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-6 border-b border-[#E5E7EB] bg-gray-50/40 p-6">
-          <div>
+          <div id="case-evidence" className={`${activeTab === "evidence" ? "" : "hidden"} scroll-mt-24`}>
             <div className="flex items-center gap-3 mb-2 flex-wrap">
               <span className="font-mono text-3xl font-bold text-[#5E6AD2]">
                 {grievance.caseId}
@@ -535,6 +539,7 @@ export default function CitizenCaseDetail() {
       </Card>
       
       {/* Reminders & Clarifications */}
+      <div id="case-actions" className={`${activeTab === "actions" ? "" : "hidden"} scroll-mt-24`}>
       {reminders.length > 0 && (
         <div className="mb-8">
           <h2 className="text-base font-bold text-[#111827] mb-3 flex items-center gap-2">
@@ -674,15 +679,16 @@ export default function CitizenCaseDetail() {
           )}
         </div>
       )}
+      </div>
 
-      <div id="chat-section" className="mb-4">
+      <div id="case-chat" className={`${activeTab === "chat" ? "" : "hidden"} scroll-mt-24`}><div id="chat-section" className="mb-4">
         <h2 className="text-lg font-bold text-[#111827] flex items-center gap-2">
           <MessageSquare className="w-5 h-5 text-[#5E6AD2]" /> Secure Masked Communication
         </h2>
         <p className="text-xs text-[#6B7280]">Direct communication with the assigned department officer. Your phone, email, and Aadhaar remain strictly hidden.</p>
-      </div>
+      </div></div>
 
-      <ChatThread caseId={grievance.caseId} role="citizen" authToken={token} />
+      {activeTab === "chat" && <ChatThread caseId={grievance.caseId} role="citizen" authToken={token} />}
 
       {/* Reminder Confirmation Dialog */}
       <ConfirmModal

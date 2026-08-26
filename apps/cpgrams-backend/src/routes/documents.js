@@ -9,6 +9,7 @@ const Document = require('../models/Document');
 const verifyToken = require('../middleware/verifyToken');
 
 const { verifyOfficerToken } = require('../services/officerAuth');
+const { enqueueAiAnalysis } = require('../ai/queue/grievanceQueue');
 
 const router = Router();
 
@@ -91,6 +92,7 @@ router.post('/grievance/:caseId/documents', verifyToken, upload.array('files', 5
     }
 
     await Case.updateOne({ caseId }, { $inc: { documentCount: docs.length } });
+    await enqueueAiAnalysis(caseId, { trigger: 'document-upload', documentCount: docs.length, forceReprocess: true });
 
     const response = docs.map(d => ({
       _id: d._id,
@@ -190,6 +192,7 @@ router.post('/officer/case/:caseId/documents', requireOfficer, upload.array('fil
     }
 
     await Case.updateOne({ caseId }, { $inc: { documentCount: docs.length } });
+    await enqueueAiAnalysis(caseId, { trigger: 'document-upload', documentCount: docs.length, forceReprocess: true });
 
     const response = docs.map(d => ({
       _id: d._id,

@@ -4,6 +4,7 @@ const { Router } = require('express');
 const Case = require('../models/Case');
 const Document = require('../models/Document');
 const AiCaseAnalysis = require('../models/AiCaseAnalysis');
+const Evidence = require('../models/Evidence');
 const verifyToken = require('../middleware/verifyToken');
 const { verifyOfficerToken } = require('../services/officerAuth');
 
@@ -77,6 +78,23 @@ router.get('/grievance/:caseId/documents/:docId/analysis', async (req, res) => {
     });
   } catch (err) {
     console.error('Document AI analysis detail error:', err.message);
+    return res.status(500).json({ error: 'Internal server error.' });
+  }
+});
+
+/** GET /grievance/:caseId/evidence — public-source research for the case */
+router.get('/grievance/:caseId/evidence', async (req, res) => {
+  try {
+    const caseRecord = await Case.findOne({ caseId: req.params.caseId }).lean();
+    if (!caseRecord) return res.status(404).json({ error: 'Case not found.' });
+    if (!await authorizeCaseAccess(req, res, caseRecord)) return;
+    const evidence = await Evidence.find({ caseId: req.params.caseId })
+      .select('-_id -__v')
+      .sort({ evidenceConfidence: -1, createdAt: -1 })
+      .lean();
+    return res.json(evidence);
+  } catch (err) {
+    console.error('Case evidence detail error:', err.message);
     return res.status(500).json({ error: 'Internal server error.' });
   }
 });

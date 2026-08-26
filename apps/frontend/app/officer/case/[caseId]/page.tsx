@@ -5,7 +5,9 @@ import { useRouter, useParams } from "next/navigation";
 import { ProtectedBanner } from "@/components/ProtectedBanner";
 import { ChatThread } from "@/components/ChatThread";
 import { CaseProgressStepper } from "@/components/CaseProgressStepper";
+import { CaseSectionTabs, type CaseTab } from "@/components/CaseSectionTabs";
 import { AiIntelligencePanel } from "@/components/AiIntelligencePanel";
+import { DocumentAnalysisPanel } from "@/components/DocumentAnalysisPanel";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -88,6 +90,7 @@ export default function OfficerCaseDetail() {
   const [showClarificationConfirm, setShowClarificationConfirm] = useState(false);
   
   const [officerToken, setOfficerToken] = useState<string>("");
+  const [activeTab, setActiveTab] = useState<CaseTab>("overview");
 
   // Court-authorized identity disclosure (revealed after Disclosure Authority approves)
   const [disclosure, setDisclosure] = useState<{ revealedEmail: string; courtOrderRef: string; decidedAt: string } | null>(null);
@@ -366,9 +369,11 @@ export default function OfficerCaseDetail() {
         </Link>
       </div>
 
-      <ProtectedBanner />
+      <CaseSectionTabs activeTab={activeTab} onChange={setActiveTab} />
 
-      {disclosure && (
+      {activeTab === "overview" && <ProtectedBanner />}
+
+      {activeTab === "overview" && disclosure && (
         <div className="mb-6 p-5 bg-red-50 border-2 border-red-400 rounded-xl shadow-sm">
           <div className="flex items-center gap-2 mb-2">
             <ShieldAlert className="w-5 h-5 text-red-600" />
@@ -398,7 +403,7 @@ export default function OfficerCaseDetail() {
       )}
 
       {/* CPGRAMS 2-Phase Stepper */}
-      <div className="mb-6 space-y-4">
+      <div id="case-overview" className={`${activeTab === "overview" ? "" : "hidden"} mb-6 scroll-mt-24 space-y-4`}>
         <CaseProgressStepper
           status={grievance.status}
           department={grievance.department}
@@ -407,12 +412,12 @@ export default function OfficerCaseDetail() {
       </div>
 
       {/* AI triage and semantic quality context for the assigned officer. */}
-      <div className="mb-8">
+      <div id="case-intelligence" className={`${activeTab === "intelligence" ? "" : "hidden"} mb-8 scroll-mt-24`}>
         <AiIntelligencePanel caseId={grievance.caseId} token={officerToken} />
       </div>
 
       {/* Appellate Authority Review Card (Stage 10) */}
-      {grievance.status === 'appealed' && (
+      {activeTab === "actions" && grievance.status === 'appealed' && (
         <div className="mb-8 p-6 bg-red-50/90 border-2 border-red-300 rounded-2xl shadow-sm">
           <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
             <div className="flex items-center gap-2.5">
@@ -483,9 +488,9 @@ export default function OfficerCaseDetail() {
       )}
 
       {/* Main Case Card */}
-      <Card className="bg-[#FFFFFF] border-[#E5E7EB] shadow-sm mb-8 rounded-2xl overflow-hidden">
+      <Card className={`${activeTab === "overview" || activeTab === "evidence" ? "" : "hidden"} bg-[#FFFFFF] border-[#E5E7EB] shadow-sm mb-8 rounded-2xl overflow-hidden`}>
         <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-6 border-b border-[#E5E7EB] bg-gray-50/40 p-6">
-          <div>
+          <div id="case-evidence" className={`${activeTab === "evidence" ? "" : "hidden"} scroll-mt-24`}>
             <div className="flex items-center gap-3 mb-2 flex-wrap">
               <span className="font-mono text-3xl font-bold text-[#5E6AD2]">
                 {grievance.caseId}
@@ -573,7 +578,7 @@ export default function OfficerCaseDetail() {
             {documents.length > 0 ? (
               <div className="space-y-2.5">
                 {documents.map((doc) => (
-                  <div key={doc._id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-xl border border-gray-200 hover:border-indigo-200 transition shadow-2xs">
+                  <div key={doc._id} className="flex flex-col gap-3 bg-white p-4 rounded-xl border border-gray-200 hover:border-indigo-200 transition shadow-2xs">
                     <div className="flex items-start gap-3 min-w-0">
                       <div className="p-2.5 bg-indigo-50 text-[#5E6AD2] rounded-xl shrink-0 mt-0.5">
                         <FileCheck className="w-5 h-5" />
@@ -600,11 +605,12 @@ export default function OfficerCaseDetail() {
                       size="sm"
                       onClick={() => handleDownloadOfficerDoc(doc)}
                       disabled={downloadingDocId === doc._id}
-                      className="text-xs text-[#5E6AD2] border-indigo-200 hover:bg-indigo-50 shrink-0 self-start sm:self-auto flex items-center gap-1.5 h-8 px-3"
+                      className="text-xs text-[#5E6AD2] border-indigo-200 hover:bg-indigo-50 shrink-0 self-end flex items-center gap-1.5 h-8 px-3"
                     >
                       {downloadingDocId === doc._id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
                       <span>{downloadingDocId === doc._id ? "Downloading..." : "Download File"}</span>
                     </Button>
+                    <DocumentAnalysisPanel caseId={caseId} documentId={doc._id} token={officerToken} />
                   </div>
                 ))}
               </div>
@@ -652,7 +658,7 @@ export default function OfficerCaseDetail() {
       </Card>
       
       {/* Clarification Section */}
-      <div className="mb-8 p-6 bg-gray-50 border border-gray-200 rounded-2xl">
+      <div id="case-actions" className={`${activeTab === "actions" ? "" : "hidden"} mb-8 scroll-mt-24 p-6 bg-gray-50 border border-gray-200 rounded-2xl`}>
         <h2 className="text-base font-bold text-[#111827] mb-1 flex items-center gap-2">
           <HelpCircle className="w-4 h-4 text-indigo-600" /> Request Clarification from Citizen
         </h2>
@@ -696,7 +702,7 @@ export default function OfficerCaseDetail() {
         )}
       </div>
 
-      <div className="mb-6 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+      <div id="case-chat" className={`${activeTab === "chat" ? "" : "hidden"} mb-6 scroll-mt-24 flex flex-col sm:flex-row sm:items-end justify-between gap-4`}>
         <div>
           <h2 className="text-xl font-bold text-[#111827]">Masked Communication Thread</h2>
           <p className="text-xs text-[#6B7280]">Direct communication channel. Citizen real identity is masked into pairwise session token.</p>
@@ -746,7 +752,7 @@ export default function OfficerCaseDetail() {
         </Dialog>
       </div>
 
-      <ChatThread caseId={grievance.caseId} role="officer" authToken={officerToken} />
+      {activeTab === "chat" && <ChatThread caseId={grievance.caseId} role="officer" authToken={officerToken} />}
 
       {/* Action Taken Report (ATR) Submission Modal */}
       <Dialog open={showAtrModal} onOpenChange={setShowAtrModal}>

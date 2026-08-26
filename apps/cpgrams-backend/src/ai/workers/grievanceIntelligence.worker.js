@@ -29,6 +29,7 @@ const {
   AI_EVIDENCE_ENABLED,
   AI_ASSIGNMENT_ENABLED,
   AI_WORKER_CONCURRENCY,
+  AI_JOB_LOCK_DURATION_MS,
 } = require('../../config/aiConfig');
 
 // ── Agent imports (will be populated in later phases) ──────────────────────
@@ -174,7 +175,14 @@ async function processGrievanceIntelligence(job) {
             const docResults = [];
             for (const doc of docs) {
               const t0 = Date.now();
-              const res = await runDocumentAgent({ caseId, ...doc, triageContext: results.triage });
+              const res = await runDocumentAgent({
+                caseId,
+                documentId: String(doc._id),
+                filePath: doc.storagePath,
+                mimeType: doc.mimeType,
+                originalName: doc.originalName,
+                triageContext: results.triage,
+              });
               const latencyMs = Date.now() - t0;
               docResults.push(res.output);
               await logAgentRun(caseId, 'document', 'completed', { input: { documentId: doc._id }, ...res, latencyMs });
@@ -357,6 +365,9 @@ function startWorker() {
   const worker = new Worker(QUEUE_NAME, async (job) => processGrievanceIntelligence(job.data), {
     connection: createRedisConnection(),
     concurrency: AI_WORKER_CONCURRENCY,
+    // Agent 3 can legitimately exceed BullMQ's 30s default lock while
+    // calling embeddings/Pinecone/OpenAI. Keep the job owned by this worker.
+    lockDuration: AI_JOB_LOCK_DURATION_MS,
   });
   worker.on('ready', () => console.log(`[Worker] BullMQ worker ready (concurrency ${AI_WORKER_CONCURRENCY}).`));
   worker.on('completed', (job) => console.log(`[Worker] Job ${job.id} completed.`));

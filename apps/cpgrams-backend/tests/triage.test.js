@@ -5,7 +5,7 @@ process.env.NODE_ENV = 'test';
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { runTriageAgent, buildMockTriageResponse } = require('../src/ai/agents/triage/triage.agent');
+const { runTriageAgent, buildMockTriageResponse, normalizeTriageResult } = require('../src/ai/agents/triage/triage.agent');
 const autoAssignService = require('../src/services/autoAssign');
 const Officer = require('../src/models/Officer');
 
@@ -42,6 +42,11 @@ test('Phase 2 triage agent and AI-aware assignment', async (t) => {
     assert.equal(output.classification.category, 'Electricity Supply');
     assert.equal(output.classification.confidence >= 0.8, true);
     assert.ok(output.searchQueries.includes('Ward 7 grievance'));
+  });
+
+  await t.test('normalizes live-model priority scores from 0-1 to 0-100', () => {
+    const output = normalizeTriageResult({ priority: { level: 'HIGH', score: 0.8, reasons: ['Safety risk'] } });
+    assert.equal(output.priority.score, 80);
   });
 
   await t.test('autoAssignWithAI prefers AI routing only above the confidence threshold', async () => {

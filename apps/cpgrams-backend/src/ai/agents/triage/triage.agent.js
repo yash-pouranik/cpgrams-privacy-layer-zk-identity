@@ -155,13 +155,23 @@ async function runTriageAgent(input) {
   const mockResponse = buildMockTriageResponse(input);
   const user = buildTriageUserPrompt(input);
 
-  return callOpenAI({
+  const result = await callOpenAI({
     tier: 'fast',
     system: TRIAGE_SYSTEM_PROMPT,
     user,
     schema: triageSchema,
     mockResponse,
   });
+  return { ...result, output: normalizeTriageResult(result.output) };
+}
+
+function normalizeTriageResult(output) {
+  if (!output || typeof output !== 'object') return output;
+  const normalized = { ...output, priority: output.priority ? { ...output.priority } : output.priority };
+  if (typeof normalized.priority?.score === 'number' && normalized.priority.score >= 0 && normalized.priority.score <= 1) {
+    normalized.priority.score = Math.round(normalized.priority.score * 100);
+  }
+  return normalized;
 }
 
 module.exports = {
@@ -169,4 +179,5 @@ module.exports = {
   buildMockTriageResponse,
   detectLanguage,
   extractWard,
+  normalizeTriageResult,
 };

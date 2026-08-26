@@ -10,6 +10,7 @@ const app = require('../src/app');
 const Case = require('../src/models/Case');
 const Document = require('../src/models/Document');
 const AiCaseAnalysis = require('../src/models/AiCaseAnalysis');
+const Evidence = require('../src/models/Evidence');
 const { signOfficerToken } = require('../src/services/officerAuth');
 
 test('Document Upload & Management API', async (t) => {
@@ -22,6 +23,7 @@ test('Document Upload & Management API', async (t) => {
       await Case.deleteMany({ caseId });
       await Document.deleteMany({ caseId });
       await AiCaseAnalysis.deleteMany({ caseId });
+      await Evidence.deleteMany({ caseId });
     } finally {
       await mongoose.disconnect();
     }
@@ -31,6 +33,7 @@ test('Document Upload & Management API', async (t) => {
   await Case.deleteMany({ caseId });
     await Document.deleteMany({ caseId });
     await AiCaseAnalysis.deleteMany({ caseId });
+    await Evidence.deleteMany({ caseId });
 
   await Case.create({
     caseId,
@@ -78,8 +81,7 @@ test('Document Upload & Management API', async (t) => {
 
   await t.test('GET /grievance/:caseId/documents/:docId/analysis returns Agent 2 output', async () => {
     const document = await Document.findOne({ caseId });
-    await AiCaseAnalysis.create({
-      caseId,
+    await AiCaseAnalysis.findOneAndUpdate({ caseId }, { $set: {
       status: 'completed',
       documentAnalysis: [{
         documentId: String(document._id),
@@ -94,7 +96,7 @@ test('Document Upload & Management API', async (t) => {
         flags: [],
         confidence: 0.91,
       }],
-    });
+    } }, { upsert: true, new: true });
 
     const res = await request(app)
       .get(`/grievance/${caseId}/documents/${document._id}/analysis`)
@@ -114,5 +116,20 @@ test('Document Upload & Management API', async (t) => {
       .get(`/grievance/${caseId}/documents/${document._id}/analysis`)
       .set('Authorization', `Bearer ${otherToken}`)
       .expect(403);
+  });
+
+  await t.test('GET /grievance/:caseId/evidence returns researched sources', async () => {
+    await Evidence.create({
+      evidenceId: 'EVD-DOC-TEST', caseId, title: 'Official inspection record', url: 'https://roads.gov.in/ward-12',
+      domain: 'roads.gov.in', sourceType: 'GOVERNMENT', excerpt: 'Ward 12 inspection record.',
+      evidenceConfidence: 0.91, status: 'REVIEW_PENDING',
+    });
+    const res = await request(app)
+      .get(`/grievance/${caseId}/evidence`)
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+    assert.equal(res.body[0].evidenceId, 'EVD-DOC-TEST');
+    assert.equal(res.body[0].sourceType, 'GOVERNMENT');
+    assert.equal(res.body[0].evidenceConfidence, 0.91);
   });
 });
