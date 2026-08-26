@@ -85,8 +85,8 @@ module.exports = function interactionRoutes(provider) {
         });
       }
 
-      // Send OTP to the citizen's email
-      await sendOtp(citizen.email);
+      // Send OTP to the citizen's email AND capture it for demo display
+      const otp = await sendOtp(citizen.email);
 
       // Mask email for display: te***@example.com
       const [localPart, domain] = citizen.email.split('@');
@@ -96,6 +96,7 @@ module.exports = function interactionRoutes(provider) {
         uid: req.params.uid,
         maskedEmail,
         aadhaar,
+        otp,           // passed for demo display
         error: null,
       });
     } catch (err) {
