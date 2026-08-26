@@ -43,8 +43,20 @@ async function upsertVector(namespace, id, values, metadata = {}) {
   const index = await getPineconeIndex();
   if (!index) return null;
 
+  if (!id || !Array.isArray(values) || values.length === 0) {
+    console.warn(`[Pinecone] Skipping invalid vector (ns=${namespace}, id=${id || 'unknown'})`);
+    return null;
+  }
+
+  const cleanMetadata = Object.fromEntries(
+    Object.entries(metadata).filter(([, value]) => value !== null && value !== undefined),
+  );
+
   try {
-    await index.namespace(namespace).upsert([{ id, values, metadata }]);
+    // Pinecone SDK v8 expects the named records payload.
+    await index.namespace(namespace).upsert({
+      records: [{ id, values, metadata: cleanMetadata }],
+    });
     return true;
   } catch (err) {
     console.warn(`[Pinecone] Upsert failed (ns=${namespace}, id=${id}):`, err.message);

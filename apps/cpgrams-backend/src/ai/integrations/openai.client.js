@@ -59,8 +59,13 @@ async function callOpenAI({ tier = 'fast', system, user, schema, mockResponse })
   const requestParams = {
     model,
     messages,
-    temperature: tier === 'reasoning' ? 0.2 : 0.1,
   };
+
+  // GPT-5-family reasoning models only support their default temperature.
+  // Older chat models still benefit from deterministic low-temperature output.
+  if (!/^gpt-5(?:[.-]|$)/i.test(model)) {
+    requestParams.temperature = tier === 'reasoning' ? 0.2 : 0.1;
+  }
 
   if (schema) {
     requestParams.response_format = {
