@@ -131,7 +131,7 @@ function resolveDepartment(category, description = '') {
   return 'General Administration';
 }
 
-async function selectOfficerByDepartment(department) {
+async function selectOfficerByDepartment(department, { reserve = true } = {}) {
   // Find the available officer with the lowest currentCaseCount in this department
   let officer = await Officer.findOne({
     department: { $regex: new RegExp(`^${department}$`, 'i') },
@@ -143,7 +143,7 @@ async function selectOfficerByDepartment(department) {
     officer = await Officer.findOne({ isAvailable: true }).sort({ currentCaseCount: 1 });
   }
 
-  if (officer) {
+  if (officer && reserve) {
     officer.currentCaseCount += 1;
     await officer.save();
   }
@@ -164,7 +164,7 @@ async function autoAssign(category, description = '') {
  * Auto-assign using AI triage when confidence is high, otherwise fall back
  * to deterministic keyword routing.
  */
-async function autoAssignWithAI(triageResult, fallbackContext = {}) {
+async function autoAssignWithAI(triageResult, fallbackContext = {}, options = {}) {
   const confidence = Number(triageResult?.classification?.confidence || 0);
   const aiDepartment = String(triageResult?.classification?.department || '').trim();
   const fallbackDepartment = resolveDepartment(
@@ -174,7 +174,7 @@ async function autoAssignWithAI(triageResult, fallbackContext = {}) {
 
   const useAiDepartment = confidence >= 0.8 && Boolean(aiDepartment);
   const resolvedDepartment = useAiDepartment ? aiDepartment : fallbackDepartment;
-  const officer = await selectOfficerByDepartment(resolvedDepartment);
+  const officer = await selectOfficerByDepartment(resolvedDepartment, options);
 
   if (!officer) {
     return null;

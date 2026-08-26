@@ -93,6 +93,17 @@ test('Phase 2 triage agent and AI-aware assignment', async (t) => {
       assert.equal(fallbackResult.resolvedDepartment, 'PWD');
       assert.equal(fallbackResult.usedAiRecommendation, false);
       assert.equal(saved.at(-1), 5);
+
+      const nonReservingResult = await autoAssignService.autoAssignWithAI(
+        {
+          classification: { department: 'PWD', confidence: 0.95 },
+          normalizedComplaint: 'Pothole on main road',
+        },
+        { category: 'Roads', description: 'Pothole on main road' },
+        { reserve: false }
+      );
+      assert.equal(nonReservingResult.resolvedDepartment, 'PWD');
+      assert.equal(saved.at(-1), 5);
     } finally {
       Officer.findOne = originalFindOne;
       Officer.prototype.save = originalSave;

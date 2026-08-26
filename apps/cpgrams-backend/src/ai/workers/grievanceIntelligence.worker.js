@@ -17,7 +17,9 @@
 const { nanoid } = require('nanoid');
 const AiCaseAnalysis = require('../../models/AiCaseAnalysis');
 const AiAgentRun     = require('../../models/AiAgentRun');
+const Case           = require('../../models/Case');
 const { registerWorker } = require('../queue/grievanceQueue');
+const { autoAssignWithAI } = require('../../services/autoAssign');
 const {
   AI_TRIAGE_ENABLED,
   AI_DOCUMENT_ENABLED,
@@ -98,7 +100,6 @@ async function processGrievanceIntelligence(job) {
   // ── Load Case data for agent inputs ───────────────────────────────────────
   let caseData = null;
   try {
-    const Case = require('../../models/Case');
     caseData = await Case.findOne({ caseId }).lean();
     if (!caseData) {
       throw new Error(`Case ${caseId} not found in DB`);
@@ -266,7 +267,44 @@ async function processGrievanceIntelligence(job) {
         await logAgentRun(caseId, 'assignment', 'failed', { error: err.message });
       }
     } else {
-      await logAgentRun(caseId, 'assignment', 'skipped', {});
+      try {
+        const t0 = Date.now();
+        const recommendation = await autoAssignWithAI(
+          results.triage,
+          { category: caseData.category, description: caseData.description },
+          // The HTTP submission may already have reserved an officer slot.
+          { reserve: !caseData.assignedOfficerId }
+        );
+        const latencyMs = Date.now() - t0;
+        results.assignment = recommendation;
+
+        if (recommendation && !caseData.assignedOfficerId) {
+          await Case.updateOne(
+            { caseId, assignedOfficerId: null },
+            {
+              $set: {
+                assignedOfficerId: recommendation.officerId,
+                department: recommendation.resolvedDepartment,
+              },
+            }
+          );
+        }
+
+        await AiCaseAnalysis.findOneAndUpdate(
+          { caseId },
+          { $set: { assignment: recommendation } }
+        );
+        await logAgentRun(caseId, 'assignment', 'completed', {
+          input: { caseId, triageResult: results.triage, currentOfficerAssignment: caseData.assignedOfficerId },
+          output: recommendation,
+          model: 'deterministic-ai-aware-routing',
+          latencyMs,
+        });
+        console.log(`[Worker] Agent 4 (Assignment fallback) ✓ ${latencyMs}ms`);
+      } catch (err) {
+        console.error(`[Worker] Agent 4 (Assignment fallback) ✗:`, err.message);
+        await logAgentRun(caseId, 'assignment', 'failed', { error: err.message });
+      }
     }
   } else {
     await logAgentRun(caseId, 'assignment', 'skipped', {});

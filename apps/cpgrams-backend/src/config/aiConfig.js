@@ -15,7 +15,7 @@ const AI_TRIAGE_ENABLED    = AI_ENABLED && process.env.AI_TRIAGE_ENABLED    !== 
 const AI_DOCUMENT_ENABLED  = AI_ENABLED && process.env.AI_DOCUMENT_ENABLED  === 'true';
 const AI_RAG_ENABLED       = AI_ENABLED && process.env.AI_RAG_ENABLED       === 'true';
 const AI_EVIDENCE_ENABLED  = AI_ENABLED && process.env.AI_EVIDENCE_ENABLED  === 'true';
-const AI_ASSIGNMENT_ENABLED= AI_ENABLED && process.env.AI_ASSIGNMENT_ENABLED=== 'true';
+const AI_ASSIGNMENT_ENABLED= AI_ENABLED && process.env.AI_ASSIGNMENT_ENABLED !== 'false';
 
 // Model tiers — default to gpt-5.6-luna, fully overridable via env
 const OPENAI_MODEL_FAST      = process.env.OPENAI_MODEL_FAST      || 'gpt-5.6-luna';
