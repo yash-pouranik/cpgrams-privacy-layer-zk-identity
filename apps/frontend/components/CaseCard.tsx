@@ -41,8 +41,8 @@ export function CaseCard({ data, href }: CaseCardProps) {
             </Badge>
             <div className="flex items-center gap-2">
               {typeof data.votes === "number" && data.votes > 0 && (
-                <span className="inline-flex items-center gap-1 rounded-full bg-orange-100 px-2 py-0.5 text-xs font-semibold text-orange-700">
-                  🔥 {data.votes} confirmed
+                <span className="inline-flex items-center gap-1 rounded-full bg-orange-50 border border-orange-200 px-2 py-0.5 text-xs font-semibold text-orange-700">
+                  {data.votes} Confirmed
                 </span>
               )}
               <span className="text-sm text-[#6B7280]">{dateStr}</span>

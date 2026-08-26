@@ -231,7 +231,7 @@ export default function DisclosureAuthorityConsole() {
                 onClick={handleQuickFillDemoToken}
                 className="text-xs font-semibold text-red-600 hover:text-red-700 hover:underline flex items-center gap-1"
               >
-                ⚡ Quick Fill Authority Token
+                Quick Fill Authority Token
               </button>
             </div>
           </CardContent>
@@ -388,7 +388,7 @@ export default function DisclosureAuthorityConsole() {
               />
             </div>
             <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-[11px] text-red-800 leading-tight">
-              ⚖️ This action is permanently recorded in the immutable audit trail and will be visible to legal auditors.
+              Legal Notice: This action is permanently recorded in the immutable audit trail and will be visible to legal auditors.
             </div>
           </div>
 

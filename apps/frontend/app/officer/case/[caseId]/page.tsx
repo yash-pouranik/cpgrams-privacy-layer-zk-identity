@@ -845,7 +845,7 @@ export default function OfficerCaseDetail() {
         description={
           <div className="space-y-2 pt-1">
             <p className="text-xs text-red-800 font-medium">
-              ⚠️ Warning: Unauthorized identity disclosure requests violate citizen privacy regulations and are subject to departmental and legal audit.
+              Warning: Unauthorized identity disclosure requests violate citizen privacy regulations and are subject to departmental and legal audit.
             </p>
             <div className="p-2.5 bg-red-50 border border-red-200 rounded-lg text-xs text-red-950 font-mono">
               <strong>Order Ref:</strong> {justification}

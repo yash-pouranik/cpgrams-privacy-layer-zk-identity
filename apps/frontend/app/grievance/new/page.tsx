@@ -112,6 +112,12 @@ export default function NewGrievancePage() {
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [createdCaseInfo, setCreatedCaseInfo] = useState<{ caseId: string; password?: string } | null>(null);
   const [copied, setCopied] = useState(false);
+  const [votedTrackingInfo, setVotedTrackingInfo] = useState<{
+    caseId: string;
+    trackingPassword?: string;
+    votes: number;
+  } | null>(null);
+  const [copiedVotePassword, setCopiedVotePassword] = useState(false);
   
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
@@ -174,20 +180,11 @@ export default function NewGrievancePage() {
       }
       setSuggestedVoted(true);
       localStorage.removeItem(AUTOSAVE_KEY);
-      const trackingPwd = data.trackingPassword;
-      if (trackingPwd) {
-        toast({
-          title: `Vote recorded ✔ ${data.votes} confirmed`,
-          description: `Case ${data.trackingCaseId || data.caseId} is now tracked.\n\nTracking Password: ${trackingPwd}\nRedirecting to public status tracker...`,
-        });
-        setTimeout(() => router.push(`/status?caseId=${encodeURIComponent(data.caseId)}&password=${encodeURIComponent(trackingPwd)}`), 1800);
-      } else {
-        toast({
-          title: "Vote recorded ✔",
-          description: `This issue now has ${data.votes} vote${data.votes === 1 ? "" : "s"} — it will be escalated faster.`,
-        });
-        router.push("/dashboard");
-      }
+      setVotedTrackingInfo({
+        caseId: data.trackingCaseId || data.caseId,
+        trackingPassword: data.trackingPassword,
+        votes: data.votes,
+      });
     } catch (err: any) {
       toast({
         title: "Error",
@@ -752,8 +749,8 @@ export default function NewGrievancePage() {
                             <div className="min-w-0">
                               <div className="flex items-center gap-2">
                                 <span className="font-mono text-xs font-bold text-[#5E6AD2]">{s.caseId}</span>
-                                <span className="inline-flex items-center gap-1 rounded-full bg-orange-100 px-2 py-0.5 text-[10px] font-bold text-orange-700">
-                                  🔥 {s.votes} citizen{s.votes === 1 ? "" : "s"} confirmed
+                                <span className="inline-flex items-center gap-1 rounded-full bg-orange-50 border border-orange-200 px-2 py-0.5 text-[10px] font-bold text-orange-700">
+                                  {s.votes} citizen{s.votes === 1 ? "" : "s"} confirmed
                                 </span>
                               </div>
                               <p className="text-xs text-gray-700 mt-1 line-clamp-2 leading-relaxed">
@@ -1044,6 +1041,73 @@ export default function NewGrievancePage() {
                 className="w-full bg-[#5E6AD2] hover:bg-[#4F5BC0] text-white flex items-center justify-center gap-2"
               >
                 Go to Case Dashboard <ArrowRight className="w-4 h-4" />
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Voted Issue Tracking Password & Confirmation Modal */}
+      {votedTrackingInfo && (
+        <Dialog open={true} onOpenChange={() => {}}>
+          <DialogContent className="max-w-md p-6 bg-white rounded-2xl shadow-xl border border-gray-100 animate-in fade-in">
+            <DialogHeader className="text-center sm:text-left gap-2">
+              <div className="inline-flex p-3 bg-emerald-50 border border-emerald-200 rounded-2xl text-emerald-600 w-fit">
+                <CheckCircle2 className="w-6 h-6" />
+              </div>
+              <DialogTitle className="text-xl font-bold text-gray-900">Vote Recorded Successfully!</DialogTitle>
+              <DialogDescription className="text-xs text-gray-600">
+                You have confirmed Case <strong className="text-indigo-600 font-mono">{votedTrackingInfo.caseId}</strong>. This issue now has {votedTrackingInfo.votes} community confirmation{votedTrackingInfo.votes === 1 ? "" : "s"}.
+              </DialogDescription>
+            </DialogHeader>
+
+            {votedTrackingInfo.trackingPassword && (
+              <div className="my-4 p-4 bg-indigo-50/70 border border-indigo-200 rounded-2xl space-y-2">
+                <p className="text-xs font-semibold text-indigo-950 uppercase tracking-wider">Your Personal Tracking Password</p>
+                <div className="flex items-center justify-between bg-white px-3 py-2 rounded-xl border border-indigo-200">
+                  <span className="font-mono text-lg font-bold text-[#5E6AD2] tracking-wider">{votedTrackingInfo.trackingPassword}</span>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => {
+                      if (votedTrackingInfo.trackingPassword) {
+                        navigator.clipboard.writeText(votedTrackingInfo.trackingPassword);
+                        setCopiedVotePassword(true);
+                        setTimeout(() => setCopiedVotePassword(false), 2000);
+                      }
+                    }}
+                    className="h-8 text-xs text-indigo-600 hover:bg-indigo-50 flex items-center gap-1"
+                  >
+                    {copiedVotePassword ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                    {copiedVotePassword ? "Copied" : "Copy"}
+                  </Button>
+                </div>
+                <p className="text-[11px] text-gray-600 leading-tight">
+                  You can use this password on the <strong>Track Status</strong> portal anytime to monitor resolution progress without logging in.
+                </p>
+              </div>
+            )}
+
+            <DialogFooter className="mt-2 flex flex-col sm:flex-row gap-2">
+              <Button
+                variant="outline"
+                onClick={() => router.push("/dashboard")}
+                className="w-full sm:w-auto flex-1 text-xs"
+              >
+                Go to Dashboard
+              </Button>
+              <Button
+                onClick={() => {
+                  if (votedTrackingInfo.trackingPassword) {
+                    router.push(`/status?caseId=${encodeURIComponent(votedTrackingInfo.caseId)}&password=${encodeURIComponent(votedTrackingInfo.trackingPassword)}`);
+                  } else {
+                    router.push("/dashboard");
+                  }
+                }}
+                className="w-full sm:w-auto flex-1 bg-[#5E6AD2] hover:bg-[#4F5BC0] text-white text-xs flex items-center justify-center gap-1.5"
+              >
+                <span>Track Live Progress</span>
+                <ArrowRight className="w-3.5 h-3.5" />
               </Button>
             </DialogFooter>
           </DialogContent>
