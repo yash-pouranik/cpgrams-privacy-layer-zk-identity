@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import { GovHeader } from "@/components/GovHeader";
 import { Navbar } from "@/components/Navbar";
+import { DemoJourneyGuide } from "@/components/DemoJourneyGuide";
 import "./globals.css";
 
 const inter = Inter({
@@ -39,6 +40,7 @@ export default function RootLayout({
         <main className="flex-1 flex flex-col">
           {children}
         </main>
+        <DemoJourneyGuide />
       </body>
     </html>
   );

@@ -11,7 +11,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { ConfirmModal } from "@/components/ConfirmModal";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Bell, MessageSquare, Star, Download, FileText, ArrowLeft, Clock, ShieldCheck, FileCheck, Loader2 } from "lucide-react";
+import { CaseProgressStepper } from "@/components/CaseProgressStepper";
+import { NextActionGuide } from "@/components/NextActionGuide";
+import { Bell, MessageSquare, Star, Download, FileText, ArrowLeft, Clock, ShieldCheck, FileCheck, Loader2, Sparkles, HelpCircle } from "lucide-react";
 import Link from "next/link";
 
 interface CaseDetail {
@@ -234,12 +236,38 @@ export default function CitizenCaseDetail() {
 
   if (!grievance) return null;
 
+  const hasUnrepliedClarification = reminders.some(r => r.type === 'clarification_request') && 
+    (reminders.filter(r => r.type === 'clarification_request').length > reminders.filter(r => r.type === 'clarification_response').length);
+
   return (
     <div className="max-w-4xl mx-auto w-full px-6 py-12 flex-1">
-      <div className="mb-6">
+      <div className="mb-6 flex items-center justify-between">
         <Link href="/dashboard" className="text-xs text-gray-500 hover:text-gray-900 flex items-center gap-1 font-medium">
           <ArrowLeft className="w-3.5 h-3.5" /> Back to My Grievances
         </Link>
+        <span className="text-[11px] font-mono text-gray-400 bg-gray-100 px-2 py-0.5 rounded">
+          Pairwise Protected Session
+        </span>
+      </div>
+
+      {/* Visual Lifecycle Stepper & Contextual Next Action Guide */}
+      <div className="space-y-4 mb-8">
+        <CaseProgressStepper
+          status={grievance.status}
+          department={grievance.department}
+          feedbackSubmitted={grievance.feedbackSubmitted}
+        />
+
+        <NextActionGuide
+          status={grievance.status}
+          department={grievance.department}
+          feedbackSubmitted={grievance.feedbackSubmitted}
+          hasUnrepliedClarification={hasUnrepliedClarification}
+          onScrollToChat={() => document.getElementById('chat-section')?.scrollIntoView({ behavior: 'smooth' })}
+          onScrollToFeedback={() => document.getElementById('feedback-section')?.scrollIntoView({ behavior: 'smooth' })}
+          onScrollToReminder={() => document.getElementById('reminder-section')?.scrollIntoView({ behavior: 'smooth' })}
+          onOpenReplyClarification={() => setShowReplyModal(true)}
+        />
       </div>
 
       <Card className="bg-[#FFFFFF] border-[#E5E7EB] shadow-sm mb-8 rounded-2xl overflow-hidden">
@@ -362,7 +390,7 @@ export default function CitizenCaseDetail() {
 
       {/* Send Reminder Form */}
       {grievance.status !== 'resolved' && (
-        <div className="mb-8 p-6 bg-gray-50 border border-gray-200 rounded-2xl">
+        <div id="reminder-section" className="mb-8 p-6 bg-gray-50 border border-gray-200 rounded-2xl">
           <h2 className="text-sm font-bold text-[#111827] mb-1">Send Status Reminder to Department</h2>
           <p className="text-xs text-gray-600 mb-3">If redressal is taking longer than expected, submit an official reminder ping to the assigned nodal officer.</p>
           <div className="flex flex-col sm:flex-row gap-2.5">
@@ -387,7 +415,7 @@ export default function CitizenCaseDetail() {
 
       {/* Redressal Feedback Section */}
       {grievance.status === 'resolved' && (
-        <div className="mb-8 p-6 bg-emerald-50/70 border border-emerald-200 rounded-2xl">
+        <div id="feedback-section" className="mb-8 p-6 bg-emerald-50/70 border border-emerald-200 rounded-2xl">
           <h2 className="text-base font-bold text-emerald-950 mb-1 flex items-center gap-2">
             <Star className="w-5 h-5 text-emerald-600 fill-emerald-600" /> Case Redressal Feedback
           </h2>
@@ -438,7 +466,7 @@ export default function CitizenCaseDetail() {
         </div>
       )}
 
-      <div className="mb-4">
+      <div id="chat-section" className="mb-4">
         <h2 className="text-lg font-bold text-[#111827] flex items-center gap-2">
           <MessageSquare className="w-5 h-5 text-[#5E6AD2]" /> Secure Masked Communication
         </h2>

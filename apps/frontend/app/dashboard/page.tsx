@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { CaseCard } from "@/components/CaseCard";
 import { Badge } from "@/components/ui/badge";
 import { ConfirmModal } from "@/components/ConfirmModal";
-import { ShieldCheck, Plus, LogOut, FileText } from "lucide-react";
+import { ShieldCheck, Plus, LogOut, FileText, CheckCircle2, Clock, Sparkles, ArrowRight, ShieldAlert, Lock } from "lucide-react";
 
 interface Case {
   caseId: string;
@@ -73,6 +73,10 @@ export default function DashboardPage() {
     );
   }
 
+  const pendingCount = cases.filter(c => c.status === 'pending' || c.status === 'assigned').length;
+  const inProgressCount = cases.filter(c => c.status === 'in_progress').length;
+  const resolvedCount = cases.filter(c => c.status === 'resolved').length;
+
   return (
     <div className="max-w-5xl mx-auto w-full px-6 py-12 flex-1">
       {/* Citizen Session Banner */}
@@ -90,9 +94,9 @@ export default function DashboardPage() {
                 Aadhaar eKYC Verified
               </Badge>
             </div>
-            <p className="text-xs text-[#6B7280] mt-1 flex items-center gap-1.5">
-              <span>Pairwise Pseudonymous ID active.</span>
-              <span className="text-emerald-700 font-medium">• Zero real personal details exposed to officers.</span>
+            <p className="text-xs text-[#6B7280] mt-1 flex items-center gap-1.5 flex-wrap">
+              <span>Pairwise ID Protected.</span>
+              <span className="text-emerald-700 font-medium">• Your mobile and Aadhaar are never shared with officers.</span>
             </p>
           </div>
         </div>
@@ -113,10 +117,28 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      {/* Metrics Summary Strip */}
+      {cases.length > 0 && (
+        <div className="grid grid-cols-3 gap-3 mb-8">
+          <div className="bg-white border border-gray-200 rounded-xl p-3.5 shadow-2xs">
+            <span className="text-[11px] text-gray-500 font-medium uppercase tracking-wider block">Awaiting Action</span>
+            <span className="text-xl font-bold text-gray-900 mt-0.5 block">{pendingCount}</span>
+          </div>
+          <div className="bg-white border border-gray-200 rounded-xl p-3.5 shadow-2xs">
+            <span className="text-[11px] text-blue-600 font-medium uppercase tracking-wider block">In Investigation</span>
+            <span className="text-xl font-bold text-blue-600 mt-0.5 block">{inProgressCount}</span>
+          </div>
+          <div className="bg-white border border-gray-200 rounded-xl p-3.5 shadow-2xs">
+            <span className="text-[11px] text-emerald-600 font-medium uppercase tracking-wider block">Resolved & Closed</span>
+            <span className="text-xl font-bold text-emerald-600 mt-0.5 block">{resolvedCount}</span>
+          </div>
+        </div>
+      )}
+
       <div className="flex items-center justify-between mb-6">
         <div>
           <h2 className="text-2xl font-bold text-[#111827] tracking-tight">My Grievances</h2>
-          <p className="text-sm text-[#6B7280] mt-1">Track status and review officer communication for your complaints.</p>
+          <p className="text-sm text-[#6B7280] mt-1">Track redressal timeline, chat with officers, and download official reports.</p>
         </div>
         <Badge variant="outline" className="text-sm px-3 py-1 font-semibold text-[#5E6AD2] bg-indigo-50 border-indigo-200">
           {cases.length} Filed
@@ -124,12 +146,35 @@ export default function DashboardPage() {
       </div>
 
       {cases.length === 0 ? (
-        <div className="bg-[#F9FAFB] border border-dashed border-[#E5E7EB] rounded-2xl p-12 text-center">
-          <FileText className="w-10 h-10 text-[#9CA3AF] mx-auto mb-3" />
-          <h3 className="text-base font-semibold text-[#374151]">No grievances filed yet</h3>
-          <p className="text-xs text-[#6B7280] mt-1 mb-5">Submit a public service grievance to get it redressed securely.</p>
-          <Button asChild className="bg-[#5E6AD2] hover:bg-[#4F5BC0] text-white">
-            <Link href="/grievance/new">+ Lodge Your First Grievance</Link>
+        <div className="bg-white border border-[#E5E7EB] rounded-2xl p-10 text-center shadow-sm">
+          <div className="w-12 h-12 bg-indigo-50 text-[#5E6AD2] rounded-2xl flex items-center justify-center mx-auto mb-4">
+            <Sparkles className="w-6 h-6" />
+          </div>
+          <h3 className="text-lg font-bold text-[#111827]">No grievances filed yet</h3>
+          <p className="text-xs text-[#6B7280] mt-1.5 max-w-md mx-auto mb-6">
+            Lodge a complaint against any central/state government department. Your personal identity remains 100% protected throughout the process.
+          </p>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 max-w-2xl mx-auto mb-8 text-left text-xs">
+            <div className="p-3 bg-gray-50 border border-gray-200 rounded-xl">
+              <span className="font-bold text-gray-900 block mb-0.5">🔒 Identity Shielded</span>
+              <span className="text-gray-500">Officer sees only randomized Pairwise Case ID.</span>
+            </div>
+            <div className="p-3 bg-gray-50 border border-gray-200 rounded-xl">
+              <span className="font-bold text-gray-900 block mb-0.5">⚡ Auto Routed</span>
+              <span className="text-gray-500">Directly assigned to responsible Nodal Officer.</span>
+            </div>
+            <div className="p-3 bg-gray-50 border border-gray-200 rounded-xl">
+              <span className="font-bold text-gray-900 block mb-0.5">💬 Masked Chat</span>
+              <span className="text-gray-500">Directly communicate without revealing mobile/email.</span>
+            </div>
+          </div>
+
+          <Button asChild className="bg-[#5E6AD2] hover:bg-[#4F5BC0] text-white text-xs h-10 px-6 font-medium shadow-sm">
+            <Link href="/grievance/new" className="flex items-center gap-1.5">
+              <span>Lodge Your First Grievance</span>
+              <ArrowRight className="w-4 h-4" />
+            </Link>
           </Button>
         </div>
       ) : (

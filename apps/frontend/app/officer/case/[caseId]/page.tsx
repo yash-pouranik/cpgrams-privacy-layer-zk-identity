@@ -12,7 +12,8 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Textarea } from "@/components/ui/textarea";
 import { ConfirmModal } from "@/components/ConfirmModal";
 import { useToast } from "@/hooks/use-toast";
-import { Download, Upload, HelpCircle, ShieldAlert, ArrowLeft, Clock, FileCheck, Loader2 } from "lucide-react";
+import { CaseProgressStepper } from "@/components/CaseProgressStepper";
+import { Download, Upload, HelpCircle, ShieldAlert, ArrowLeft, Clock, FileCheck, Loader2, Sparkles } from "lucide-react";
 import Link from "next/link";
 
 interface CaseDetail {
@@ -330,6 +331,13 @@ export default function OfficerCaseDetail() {
           </div>
         </div>
       )}
+
+      <div className="mb-6 space-y-4">
+        <CaseProgressStepper
+          status={grievance.status}
+          department={grievance.department}
+        />
+      </div>
 
       <Card className="bg-[#FFFFFF] border-[#E5E7EB] shadow-sm mb-8 rounded-2xl overflow-hidden">
         <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-6 border-b border-[#E5E7EB] bg-gray-50/40 p-6">
