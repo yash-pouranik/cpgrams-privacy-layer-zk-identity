@@ -78,7 +78,7 @@ app.get('/health', async (req, res) => {
     port: PORT,
     ai: {
       enabled: AI_ENABLED,
-      status: AI_ENABLED && !redis.connected ? 'degraded' : 'ok',
+      status: AI_ENABLED && (!redis.connected || counts.unavailable) ? 'degraded' : 'ok',
       pendingJobs: (counts.waiting || 0) + (counts.active || 0),
       queue: counts,
     },

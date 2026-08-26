@@ -7,7 +7,9 @@ function createRedisConnection({ health = false } = {}) {
   return new Redis(REDIS_URL, {
     maxRetriesPerRequest: null,
     enableReadyCheck: true,
-    lazyConnect: true,
+    // Health checks connect on demand; queue/worker connections connect eagerly
+    // so BullMQ cannot remain stuck in an uninitialized lazy state.
+    lazyConnect: health,
     connectTimeout: 2000,
     retryStrategy: health ? () => null : (attempt) => Math.min(attempt * 200, 5000),
   });

@@ -35,10 +35,11 @@ async function enqueueAiAnalysis(caseId, meta = {}) {
 
 async function queueStats() {
   try {
+    await grievanceQueue.waitUntilReady();
     return await grievanceQueue.getJobCounts('waiting', 'active', 'completed', 'failed', 'delayed');
   } catch (err) {
     console.warn('[Queue] Unable to read queue stats:', err.message);
-    return { waiting: 0, active: 0, completed: 0, failed: 0, delayed: 0, unavailable: true };
+    return { waiting: 0, active: 0, completed: 0, failed: 0, delayed: 0, unavailable: true, error: err.message };
   }
 }
 
