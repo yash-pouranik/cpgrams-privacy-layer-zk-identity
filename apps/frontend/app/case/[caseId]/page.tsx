@@ -4,6 +4,8 @@ import { useEffect, useState, useCallback } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { StatusBadge } from "@/components/StatusBadge";
 import { ChatThread } from "@/components/ChatThread";
+import { CaseProgressStepper } from "@/components/CaseProgressStepper";
+import { NextActionGuide } from "@/components/NextActionGuide";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -11,9 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { ConfirmModal } from "@/components/ConfirmModal";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { CaseProgressStepper } from "@/components/CaseProgressStepper";
-import { NextActionGuide } from "@/components/NextActionGuide";
-import { Bell, MessageSquare, Star, Download, FileText, ArrowLeft, Clock, ShieldCheck, FileCheck, Loader2, Sparkles, HelpCircle } from "lucide-react";
+import { Bell, MessageSquare, Star, Download, FileText, ArrowLeft, Clock, ShieldCheck, FileCheck, Loader2, Sparkles, HelpCircle, Scale, ShieldAlert } from "lucide-react";
 import Link from "next/link";
 
 interface CaseDetail {
@@ -25,6 +25,13 @@ interface CaseDetail {
   createdAt: string;
   feedbackSubmitted?: boolean;
   feedback?: { rating: number; comment: string; createdAt: string };
+  atrRemarks?: string | null;
+  atrUploadedAt?: string | null;
+  appealReason?: string | null;
+  appealFiledAt?: string | null;
+  appealStatus?: string | null;
+  appealOrderRemarks?: string | null;
+  appealDecidedAt?: string | null;
 }
 
 interface Document {
@@ -69,6 +76,12 @@ export default function CitizenCaseDetail() {
   const [feedbackComment, setFeedbackComment] = useState("");
   const [submittingFeedback, setSubmittingFeedback] = useState(false);
   const [showFeedbackConfirm, setShowFeedbackConfirm] = useState(false);
+
+  // First Appeal (Stage 9 & 10)
+  const [appealReason, setAppealReason] = useState("");
+  const [submittingAppeal, setSubmittingAppeal] = useState(false);
+  const [showAppealModal, setShowAppealModal] = useState(false);
+  const [showAppealConfirm, setShowAppealConfirm] = useState(false);
 
   const fetchCaseData = useCallback(async (t: string) => {
     if (!caseId) return;
@@ -226,6 +239,44 @@ export default function CitizenCaseDetail() {
     }
   };
 
+  const handleInitiateAppeal = async () => {
+    if (!appealReason.trim() || !caseId) return;
+    setSubmittingAppeal(true);
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+      const res = await fetch(`${apiUrl}/grievance/${caseId}/appeal`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ appealReason: appealReason.trim() }),
+      });
+
+      if (res.ok) {
+        setShowAppealConfirm(false);
+        setShowAppealModal(false);
+        setAppealReason("");
+        toast({
+          title: "First Appeal Registered",
+          description: "Your case is now under Nodal Appellate Authority (Joint Secretary) evaluation.",
+        });
+        fetchCaseData(token);
+      } else {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || "Failed to submit appeal");
+      }
+    } catch (err: any) {
+      toast({
+        title: "Appeal Submission Failed",
+        description: err.message,
+        variant: "destructive",
+      });
+    } finally {
+      setSubmittingAppeal(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center items-center flex-1 min-h-[60vh]">
@@ -238,6 +289,8 @@ export default function CitizenCaseDetail() {
 
   const hasUnrepliedClarification = reminders.some(r => r.type === 'clarification_request') && 
     (reminders.filter(r => r.type === 'clarification_request').length > reminders.filter(r => r.type === 'clarification_response').length);
+
+  const isDisposed = grievance.status === 'disposed' || grievance.status === 'resolved';
 
   return (
     <div className="max-w-4xl mx-auto w-full px-6 py-12 flex-1">
@@ -256,20 +309,104 @@ export default function CitizenCaseDetail() {
           status={grievance.status}
           department={grievance.department}
           feedbackSubmitted={grievance.feedbackSubmitted}
+          appealStatus={grievance.appealStatus}
         />
 
         <NextActionGuide
           status={grievance.status}
           department={grievance.department}
           feedbackSubmitted={grievance.feedbackSubmitted}
+          feedbackRating={grievance.feedback?.rating}
           hasUnrepliedClarification={hasUnrepliedClarification}
           onScrollToChat={() => document.getElementById('chat-section')?.scrollIntoView({ behavior: 'smooth' })}
           onScrollToFeedback={() => document.getElementById('feedback-section')?.scrollIntoView({ behavior: 'smooth' })}
           onScrollToReminder={() => document.getElementById('reminder-section')?.scrollIntoView({ behavior: 'smooth' })}
           onOpenReplyClarification={() => setShowReplyModal(true)}
+          onOpenAppealModal={() => setShowAppealModal(true)}
         />
       </div>
 
+      {/* Official Action Taken Report (ATR) - Stages 7 & 8 */}
+      {(grievance.atrRemarks || isDisposed || grievance.status === 'appealed') && (
+        <div className="bg-emerald-50/80 border border-emerald-300 rounded-2xl p-6 mb-8 shadow-sm">
+          <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+            <div className="flex items-center gap-2.5">
+              <div className="p-2 bg-emerald-600 text-white rounded-xl">
+                <FileCheck className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-emerald-950 uppercase tracking-wider">
+                  Official Action Taken Report (ATR / निस्तारण रिपोर्ट)
+                </h3>
+                <p className="text-xs text-emerald-800">
+                  Stages 7 & 8: Formally submitted by {grievance.department || "Handling"} Nodal Authority.
+                </p>
+              </div>
+            </div>
+            <Badge className="bg-emerald-700 text-white text-xs font-mono">
+              Redressal Verified
+            </Badge>
+          </div>
+
+          <div className="bg-white p-4 rounded-xl border border-emerald-200 text-xs space-y-2 text-gray-800 leading-relaxed font-sans">
+            <p className="font-semibold text-gray-900">Action Taken Summary:</p>
+            <p className="text-gray-700 whitespace-pre-wrap">
+              {grievance.atrRemarks || "Ground inquiry completed and rectification SOPs executed by the department field unit. File marked disposed in CPGRAMS central registry."}
+            </p>
+            {grievance.atrUploadedAt && (
+              <p className="text-[11px] text-gray-400 pt-2 border-t border-gray-100 flex items-center gap-1 font-mono">
+                <Clock className="w-3 h-3" /> ATR Disposed On: {new Date(grievance.atrUploadedAt).toLocaleString()}
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* First Appeal Under Review Card - Stage 10 */}
+      {(grievance.status === 'appealed' || (grievance.appealStatus && grievance.appealStatus !== 'none')) && (
+        <div className="bg-red-50/90 border-2 border-red-300 rounded-2xl p-6 mb-8 shadow-sm">
+          <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+            <div className="flex items-center gap-2.5">
+              <div className="p-2 bg-red-600 text-white rounded-xl">
+                <Scale className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-red-950 uppercase tracking-wider">
+                  Stage 10: First Appeal under Appellate Authority (प्रथम अपील)
+                </h3>
+                <p className="text-xs text-red-800">
+                  Escalated to Joint Secretary rank Nodal Appellate Authority (NAA) for independent verification.
+                </p>
+              </div>
+            </div>
+            <Badge className="bg-red-600 text-white text-xs font-mono uppercase">
+              {grievance.appealStatus === 'pending' ? 'Appellate Review Active' : grievance.appealStatus === 'upheld' ? 'Resolution Upheld' : 'Fresh Action Ordered'}
+            </Badge>
+          </div>
+
+          <div className="bg-white p-4 rounded-xl border border-red-200 text-xs space-y-3 text-gray-800 leading-relaxed font-sans">
+            <div>
+              <span className="font-bold text-gray-900 block mb-1">Citizen Grounds for Appeal:</span>
+              <p className="text-gray-700 italic bg-red-50/50 p-2.5 rounded-lg border border-red-100">&ldquo;{grievance.appealReason}&rdquo;</p>
+            </div>
+
+            {grievance.appealOrderRemarks && (
+              <div className="pt-2 border-t border-gray-100">
+                <span className="font-bold text-emerald-950 block mb-1">Appellate Authority Final Order:</span>
+                <p className="text-gray-800 font-semibold">{grievance.appealOrderRemarks}</p>
+              </div>
+            )}
+
+            {grievance.appealFiledAt && (
+              <p className="text-[11px] text-gray-400 pt-1 font-mono flex items-center gap-1">
+                <Clock className="w-3 h-3" /> Appeal Registered On: {new Date(grievance.appealFiledAt).toLocaleString()}
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Main Grievance Details Card */}
       <Card className="bg-[#FFFFFF] border-[#E5E7EB] shadow-sm mb-8 rounded-2xl overflow-hidden">
         <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-6 border-b border-[#E5E7EB] bg-gray-50/40 p-6">
           <div>
@@ -306,7 +443,7 @@ export default function CitizenCaseDetail() {
             
             {documents.length > 0 ? (
               <div className="space-y-2.5">
-                {documents.map((doc, idx) => (
+                {documents.map((doc) => (
                   <div key={doc._id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-xl border border-gray-200 hover:border-indigo-200 transition shadow-2xs">
                     <div className="flex items-start gap-3 min-w-0">
                       <div className="p-2.5 bg-indigo-50 text-[#5E6AD2] rounded-xl shrink-0 mt-0.5">
@@ -389,7 +526,7 @@ export default function CitizenCaseDetail() {
       )}
 
       {/* Send Reminder Form */}
-      {grievance.status !== 'resolved' && (
+      {!isDisposed && grievance.status !== 'appealed' && (
         <div id="reminder-section" className="mb-8 p-6 bg-gray-50 border border-gray-200 rounded-2xl">
           <h2 className="text-sm font-bold text-[#111827] mb-1">Send Status Reminder to Department</h2>
           <p className="text-xs text-gray-600 mb-3">If redressal is taking longer than expected, submit an official reminder ping to the assigned nodal officer.</p>
@@ -413,19 +550,45 @@ export default function CitizenCaseDetail() {
         </div>
       )}
 
-      {/* Redressal Feedback Section */}
-      {grievance.status === 'resolved' && (
+      {/* Redressal Feedback & Appeal Section */}
+      {isDisposed && (
         <div id="feedback-section" className="mb-8 p-6 bg-emerald-50/70 border border-emerald-200 rounded-2xl">
-          <h2 className="text-base font-bold text-emerald-950 mb-1 flex items-center gap-2">
-            <Star className="w-5 h-5 text-emerald-600 fill-emerald-600" /> Case Redressal Feedback
-          </h2>
+          <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+            <h2 className="text-base font-bold text-emerald-950 flex items-center gap-2">
+              <Star className="w-5 h-5 text-emerald-600 fill-emerald-600" /> Stage 9: Case Redressal Feedback
+            </h2>
+            {grievance.status !== 'appealed' && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowAppealModal(true)}
+                className="text-xs text-red-600 border-red-200 hover:bg-red-50 flex items-center gap-1.5 h-8"
+              >
+                <Scale className="w-3.5 h-3.5" /> File First Appeal (NAA)
+              </Button>
+            )}
+          </div>
           
           {grievance.feedbackSubmitted && grievance.feedback ? (
-            <div className="mt-4 bg-white p-4 rounded-xl border border-emerald-100 space-y-1">
-              <h3 className="font-semibold text-emerald-950 text-sm">Your Submitted Review</h3>
-              <p className="text-sm text-emerald-900">Rating: <strong>{grievance.feedback.rating} / 5 Stars</strong></p>
+            <div className="mt-4 bg-white p-4 rounded-xl border border-emerald-100 space-y-2">
+              <div className="flex items-center justify-between">
+                <h3 className="font-semibold text-emerald-950 text-sm">Your Submitted Review</h3>
+                <span className="text-xs font-bold text-emerald-700">{grievance.feedback.rating} / 5 Stars</span>
+              </div>
               {grievance.feedback.comment && (
-                <p className="text-gray-700 text-sm italic mt-1">&ldquo;{grievance.feedback.comment}&rdquo;</p>
+                <p className="text-gray-700 text-sm italic">&ldquo;{grievance.feedback.comment}&rdquo;</p>
+              )}
+              {grievance.feedback.rating <= 2 && grievance.status !== 'appealed' && (
+                <div className="pt-3 border-t border-gray-100 flex items-center justify-between flex-wrap gap-2">
+                  <span className="text-xs text-red-700 font-medium">Dissatisfied with this resolution?</span>
+                  <Button
+                    size="sm"
+                    onClick={() => setShowAppealModal(true)}
+                    className="bg-red-600 hover:bg-red-700 text-white text-xs h-7 px-3"
+                  >
+                    Escalate to Appellate Authority
+                  </Button>
+                </div>
               )}
             </div>
           ) : (
@@ -537,7 +700,68 @@ export default function CitizenCaseDetail() {
         confirmText="Confirm & Submit Rating"
         description={
           <div className="space-y-2 pt-1">
-            <p className="text-xs text-gray-600">You are submitting a satisfaction rating of <strong className="text-emerald-700">{rating} / 5 Stars</strong> for this redressed grievance. Once submitted, feedback is recorded permanently in the department quality records.</p>
+            <p className="text-xs text-gray-600">You are submitting a satisfaction rating of <strong className="text-emerald-700">{rating} / 5 Stars</strong> for this redressed grievance.</p>
+          </div>
+        }
+      />
+
+      {/* First Appeal Modal - Stage 10 */}
+      <Dialog open={showAppealModal} onOpenChange={setShowAppealModal}>
+        <DialogContent className="max-w-md p-6 bg-white rounded-2xl shadow-xl border border-gray-100">
+          <DialogHeader className="gap-2">
+            <div className="p-2.5 bg-red-100 text-red-600 rounded-xl w-fit">
+              <Scale className="w-5 h-5" />
+            </div>
+            <DialogTitle className="text-lg font-bold text-gray-900">
+              Initiate First Appeal (Nodal Appellate Authority)
+            </DialogTitle>
+            <DialogDescription className="text-xs text-gray-600">
+              If you are dissatisfied with the Action Taken Report (ATR) or department resolution, escalate this grievance to the Joint Secretary rank Appellate Authority.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="my-3 space-y-2">
+            <label className="text-xs font-semibold text-gray-700">Grounds / Reasons for Appeal</label>
+            <Textarea
+              value={appealReason}
+              onChange={e => setAppealReason(e.target.value)}
+              placeholder="State clearly why the ground resolution was inadequate or what issues remain unresolved..."
+              className="min-h-[110px] bg-[#F9FAFB] text-xs"
+            />
+            <p className="text-[11px] text-gray-500">🔒 Your appeal is filed securely under your Pairwise Identity.</p>
+          </div>
+          <DialogFooter className="flex justify-end gap-2 border-t pt-3">
+            <Button variant="outline" size="sm" onClick={() => setShowAppealModal(false)}>Cancel</Button>
+            <Button
+              size="sm"
+              onClick={() => {
+                if (appealReason.trim()) setShowAppealConfirm(true);
+              }}
+              disabled={!appealReason.trim() || submittingAppeal}
+              className="bg-red-600 hover:bg-red-700 text-white text-xs"
+            >
+              Submit Appeal
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* First Appeal Confirmation Dialog */}
+      <ConfirmModal
+        isOpen={showAppealConfirm}
+        onClose={() => setShowAppealConfirm(false)}
+        onConfirm={handleInitiateAppeal}
+        loading={submittingAppeal}
+        title="Escalate to Appellate Authority?"
+        icon="warning"
+        variant="warning"
+        confirmText="Confirm & File Appeal"
+        description={
+          <div className="space-y-2 pt-1 text-xs text-gray-600">
+            <p>You are escalating Case <strong className="text-gray-900">{caseId}</strong> to the Nodal Appellate Authority.</p>
+            <div className="p-2.5 bg-gray-50 border border-gray-200 rounded-lg italic text-gray-800">
+              &ldquo;{appealReason}&rdquo;
+            </div>
+            <p className="text-gray-500">The Joint Secretary will conduct an independent review of the Action Taken Report.</p>
           </div>
         }
       />

@@ -187,4 +187,56 @@ router.get('/:caseId', verifyToken, async (req, res) => {
   }
 });
 
+/**
+ * POST /grievance/:caseId/appeal
+ * Initiate First Appeal to Appellate Authority (Stage 9 & 10).
+ */
+router.post('/:caseId/appeal', verifyToken, async (req, res) => {
+  try {
+    const { pairwiseId } = req.citizen;
+    const { appealReason } = req.body;
+    const { caseId } = req.params;
+
+    if (!appealReason || !appealReason.trim()) {
+      return res.status(400).json({ error: 'Appeal grounds/reason is required.' });
+    }
+
+    const grievance = await Case.findOne({ caseId });
+    if (!grievance) {
+      return res.status(404).json({ error: 'Case not found.' });
+    }
+
+    if (grievance.pairwiseId !== pairwiseId) {
+      return res.status(403).json({ error: 'Access denied.' });
+    }
+
+    const isDisposed = grievance.status === 'disposed' || grievance.status === 'resolved';
+    if (!isDisposed && grievance.status !== 'appealed') {
+      return res.status(400).json({ error: 'First Appeal can only be initiated on disposed grievances.' });
+    }
+
+    grievance.status = 'appealed';
+    grievance.appealReason = appealReason.trim();
+    grievance.appealStatus = 'pending';
+    grievance.appealFiledAt = new Date();
+    await grievance.save();
+
+    await AuditLog.create({
+      eventType: 'appeal_initiated',
+      actorId: pairwiseId,
+      targetCaseId: caseId,
+      targetPairwiseId: pairwiseId,
+      metadata: { appealReason: appealReason.trim(), department: grievance.department },
+    });
+
+    const response = grievance.toObject();
+    delete response.pairwiseId;
+    delete response.__v;
+    return res.json(response);
+  } catch (err) {
+    console.error('Initiate appeal error:', err);
+    return res.status(500).json({ error: 'Internal server error.' });
+  }
+});
+
 module.exports = router;

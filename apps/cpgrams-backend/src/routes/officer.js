@@ -184,8 +184,17 @@ router.get('/case/:caseId/disclosure', async (req, res) => {
  */
 router.patch('/case/:caseId/status', async (req, res) => {
   try {
-    const { status } = req.body;
-    const validStatuses = ['assigned', 'in_progress', 'resolved'];
+    const { status, atrRemarks } = req.body;
+    const validStatuses = [
+      'received',
+      'under_process',
+      'forwarded',
+      'disposed',
+      'appealed',
+      'assigned',
+      'in_progress',
+      'resolved',
+    ];
 
     if (!status || !validStatuses.includes(status)) {
       return res.status(400).json({
@@ -203,6 +212,10 @@ router.patch('/case/:caseId/status', async (req, res) => {
     }
 
     grievance.status = status;
+    if (atrRemarks && (status === 'disposed' || status === 'resolved')) {
+      grievance.atrRemarks = atrRemarks.trim();
+      grievance.atrUploadedAt = new Date();
+    }
     grievance.updatedAt = new Date();
     await grievance.save();
 
@@ -211,7 +224,7 @@ router.patch('/case/:caseId/status', async (req, res) => {
       eventType: 'status_updated',
       actorId: req.officer.officerId,
       targetCaseId: grievance.caseId,
-      metadata: { newStatus: status },
+      metadata: { newStatus: status, hasAtr: !!atrRemarks },
     });
 
     const response = grievance.toObject();
@@ -221,6 +234,56 @@ router.patch('/case/:caseId/status', async (req, res) => {
     return res.json(response);
   } catch (err) {
     console.error('Update status error:', err);
+    return res.status(500).json({ error: 'Internal server error.' });
+  }
+});
+
+/**
+ * POST /officer/case/:caseId/appeal-decision
+ * Nodal Appellate Authority (NAA) First Appeal Decision (Stage 10).
+ */
+router.post('/case/:caseId/appeal-decision', async (req, res) => {
+  try {
+    const { decision, appealOrderRemarks } = req.body;
+    if (!['upheld', 'fresh_action_ordered'].includes(decision)) {
+      return res.status(400).json({ error: "Decision must be 'upheld' or 'fresh_action_ordered'." });
+    }
+
+    const grievance = await Case.findOne({ caseId: req.params.caseId });
+    if (!grievance) {
+      return res.status(404).json({ error: 'Case not found.' });
+    }
+
+    if (grievance.assignedOfficerId !== req.officer.officerId) {
+      return res.status(403).json({ error: 'Forbidden. Case assigned to a different officer.' });
+    }
+
+    grievance.appealStatus = decision;
+    grievance.appealOrderRemarks = appealOrderRemarks ? appealOrderRemarks.trim() : null;
+    grievance.appealDecidedAt = new Date();
+
+    if (decision === 'fresh_action_ordered') {
+      grievance.status = 'under_process'; // Re-open for ground correction
+    } else {
+      grievance.status = 'disposed'; // Upheld resolution
+    }
+
+    await grievance.save();
+
+    await AuditLog.create({
+      eventType: 'appeal_decided',
+      actorId: req.officer.officerId,
+      targetCaseId: grievance.caseId,
+      metadata: { decision, appealOrderRemarks, newStatus: grievance.status },
+    });
+
+    const response = grievance.toObject();
+    delete response.pairwiseId;
+    delete response.__v;
+
+    return res.json(response);
+  } catch (err) {
+    console.error('Appeal decision error:', err);
     return res.status(500).json({ error: 'Internal server error.' });
   }
 });

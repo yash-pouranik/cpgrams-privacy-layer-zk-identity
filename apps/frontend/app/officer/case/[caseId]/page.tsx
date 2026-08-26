@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { ProtectedBanner } from "@/components/ProtectedBanner";
 import { ChatThread } from "@/components/ChatThread";
+import { CaseProgressStepper } from "@/components/CaseProgressStepper";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -12,8 +13,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Textarea } from "@/components/ui/textarea";
 import { ConfirmModal } from "@/components/ConfirmModal";
 import { useToast } from "@/hooks/use-toast";
-import { CaseProgressStepper } from "@/components/CaseProgressStepper";
-import { Download, Upload, HelpCircle, ShieldAlert, ArrowLeft, Clock, FileCheck, Loader2, Sparkles } from "lucide-react";
+import { Download, Upload, HelpCircle, ShieldAlert, ArrowLeft, Clock, FileCheck, Loader2, Sparkles, Scale, FileText, CheckCircle2 } from "lucide-react";
 import Link from "next/link";
 
 interface CaseDetail {
@@ -23,6 +23,13 @@ interface CaseDetail {
   department: string | null;
   description: string;
   createdAt: string;
+  atrRemarks?: string | null;
+  atrUploadedAt?: string | null;
+  appealReason?: string | null;
+  appealFiledAt?: string | null;
+  appealStatus?: string | null;
+  appealOrderRemarks?: string | null;
+  appealDecidedAt?: string | null;
 }
 
 interface Document {
@@ -52,6 +59,16 @@ export default function OfficerCaseDetail() {
   const [statusInput, setStatusInput] = useState("");
   const [updating, setUpdating] = useState(false);
   const [showStatusConfirm, setShowStatusConfirm] = useState(false);
+
+  // ATR (Action Taken Report)
+  const [atrRemarksInput, setAtrRemarksInput] = useState("");
+  const [showAtrModal, setShowAtrModal] = useState(false);
+
+  // Appellate Authority First Appeal Review (Stage 10)
+  const [appealDecision, setAppealDecision] = useState<"upheld" | "fresh_action_ordered">("fresh_action_ordered");
+  const [appealOrderRemarks, setAppealOrderRemarks] = useState("");
+  const [decidingAppeal, setDecidingAppeal] = useState(false);
+  const [showAppealDecisionConfirm, setShowAppealDecisionConfirm] = useState(false);
 
   const [justification, setJustification] = useState("");
   const [requesting, setRequesting] = useState(false);
@@ -104,7 +121,7 @@ export default function OfficerCaseDetail() {
       });
       if (remRes.ok) setReminders(await remRes.json());
 
-      // Court-authorized disclosure status (reveals identity only if approved).
+      // Court-authorized disclosure status
       const discRes = await fetch(`${apiUrl}/officer/case/${caseId}/disclosure`, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -172,6 +189,13 @@ export default function OfficerCaseDetail() {
 
   const handleStatusUpdate = async () => {
     if (!statusInput || statusInput === grievance?.status || !caseId) return;
+    
+    // If disposing case, ensure ATR remarks are captured
+    if ((statusInput === 'disposed' || statusInput === 'resolved') && !atrRemarksInput.trim()) {
+      setShowAtrModal(true);
+      return;
+    }
+
     setUpdating(true);
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
@@ -181,20 +205,58 @@ export default function OfficerCaseDetail() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${officerToken}`,
         },
-        body: JSON.stringify({ status: statusInput }),
+        body: JSON.stringify({ 
+          status: statusInput,
+          atrRemarks: atrRemarksInput.trim() || undefined,
+        }),
       });
       if (res.ok) {
         await fetchCase(officerToken);
         setShowStatusConfirm(false);
+        setShowAtrModal(false);
+        setAtrRemarksInput("");
         toast({
           title: "Status Updated",
-          description: `Case ${caseId} status updated to ${statusInput.replace('_', ' ')}.`,
+          description: `Case ${caseId} updated to ${statusInput.replace('_', ' ')}.`,
         });
       }
     } catch (err) {
       console.error("Failed to update status", err);
     } finally {
       setUpdating(false);
+    }
+  };
+
+  const handleAppealDecision = async () => {
+    if (!caseId) return;
+    setDecidingAppeal(true);
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+      const res = await fetch(`${apiUrl}/officer/case/${caseId}/appeal-decision`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${officerToken}`,
+        },
+        body: JSON.stringify({
+          decision: appealDecision,
+          appealOrderRemarks: appealOrderRemarks.trim(),
+        }),
+      });
+
+      if (res.ok) {
+        setShowAppealDecisionConfirm(false);
+        setAppealOrderRemarks("");
+        toast({
+          title: "Appellate Order Issued",
+          description: appealDecision === 'fresh_action_ordered' ? "Case re-opened for field correction." : "Initial resolution upheld.",
+        });
+        fetchCase(officerToken);
+      }
+    } catch (err) {
+      console.error("Failed to decide appeal", err);
+    } finally {
+      setDecidingAppeal(false);
     }
   };
 
@@ -332,13 +394,87 @@ export default function OfficerCaseDetail() {
         </div>
       )}
 
+      {/* CPGRAMS 2-Phase Stepper */}
       <div className="mb-6 space-y-4">
         <CaseProgressStepper
           status={grievance.status}
           department={grievance.department}
+          appealStatus={grievance.appealStatus}
         />
       </div>
 
+      {/* Appellate Authority Review Card (Stage 10) */}
+      {grievance.status === 'appealed' && (
+        <div className="mb-8 p-6 bg-red-50/90 border-2 border-red-300 rounded-2xl shadow-sm">
+          <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+            <div className="flex items-center gap-2.5">
+              <div className="p-2 bg-red-600 text-white rounded-xl">
+                <Scale className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-red-950 uppercase tracking-wider">
+                  Nodal Appellate Authority (NAA) Appeal Review Desk
+                </h3>
+                <p className="text-xs text-red-800">
+                  Stage 10: Citizen filed First Appeal against initial ground redressal.
+                </p>
+              </div>
+            </div>
+            <Badge className="bg-red-600 text-white text-xs font-mono">
+              Action Required
+            </Badge>
+          </div>
+
+          <div className="bg-white p-4 rounded-xl border border-red-200 text-xs space-y-4 mb-4">
+            <div>
+              <span className="font-bold text-gray-900 block mb-1">Complainant Appeal Grounds:</span>
+              <p className="text-gray-800 italic bg-red-50/60 p-3 rounded-lg border border-red-100">&ldquo;{grievance.appealReason}&rdquo;</p>
+            </div>
+
+            <div className="space-y-3 pt-2 border-t border-gray-100">
+              <span className="font-bold text-gray-900 block">Appellate Decision:</span>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setAppealDecision("fresh_action_ordered")}
+                  className={`p-3 rounded-xl border text-left transition text-xs ${appealDecision === 'fresh_action_ordered' ? 'bg-indigo-50 border-indigo-300 text-indigo-950 font-semibold' : 'bg-gray-50 border-gray-200 text-gray-700'}`}
+                >
+                  <span className="block font-bold text-indigo-700">1. Order Fresh Field Correction</span>
+                  <span className="text-[11px] text-gray-500">Re-opens case for immediate on-site rectification.</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAppealDecision("upheld")}
+                  className={`p-3 rounded-xl border text-left transition text-xs ${appealDecision === 'upheld' ? 'bg-emerald-50 border-emerald-300 text-emerald-950 font-semibold' : 'bg-gray-50 border-gray-200 text-gray-700'}`}
+                >
+                  <span className="block font-bold text-emerald-700">2. Uphold Ground Resolution</span>
+                  <span className="text-[11px] text-gray-500">Confirms ATR resolution was legally adequate.</span>
+                </button>
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-gray-700 block mb-1">Appellate Authority Order Remarks</label>
+                <Textarea
+                  value={appealOrderRemarks}
+                  onChange={(e) => setAppealOrderRemarks(e.target.value)}
+                  placeholder="Enter formal Appellate Authority order text..."
+                  className="min-h-[70px] text-xs bg-gray-50"
+                />
+              </div>
+
+              <Button
+                onClick={() => setShowAppealDecisionConfirm(true)}
+                disabled={decidingAppeal}
+                className="bg-red-600 hover:bg-red-700 text-white text-xs font-medium px-4 h-9"
+              >
+                Issue Formal Appellate Order
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Main Case Card */}
       <Card className="bg-[#FFFFFF] border-[#E5E7EB] shadow-sm mb-8 rounded-2xl overflow-hidden">
         <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-6 border-b border-[#E5E7EB] bg-gray-50/40 p-6">
           <div>
@@ -356,19 +492,23 @@ export default function OfficerCaseDetail() {
           </div>
           <div className="flex items-center gap-2">
             <Select value={statusInput} onValueChange={(value) => setStatusInput(value ?? "")}>
-              <SelectTrigger className="w-[140px] bg-[#F9FAFB] border-[#E5E7EB]">
+              <SelectTrigger className="w-[180px] bg-[#F9FAFB] border-[#E5E7EB] text-xs">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="assigned">Assigned</SelectItem>
-                <SelectItem value="in_progress">In Progress</SelectItem>
-                <SelectItem value="resolved">Resolved</SelectItem>
+                <SelectItem value="under_process">2. Under Process (Nodal)</SelectItem>
+                <SelectItem value="forwarded">3. Forwarded to Subordinate</SelectItem>
+                <SelectItem value="disposed">4. Disposed / Closed (ATR)</SelectItem>
               </SelectContent>
             </Select>
             <Button 
               onClick={() => {
                 if (statusInput && statusInput !== grievance.status) {
-                  setShowStatusConfirm(true);
+                  if (statusInput === 'disposed' || statusInput === 'resolved') {
+                    setShowAtrModal(true);
+                  } else {
+                    setShowStatusConfirm(true);
+                  }
                 }
               }} 
               disabled={updating || statusInput === grievance.status}
@@ -385,6 +525,14 @@ export default function OfficerCaseDetail() {
               {grievance.description}
             </p>
           </div>
+
+          {/* Action Taken Report (ATR) - if already submitted */}
+          {grievance.atrRemarks && (
+            <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl text-xs space-y-1">
+              <span className="font-bold text-emerald-950 uppercase tracking-wider block">Submitted Action Taken Report (ATR):</span>
+              <p className="text-emerald-900 whitespace-pre-wrap leading-relaxed">{grievance.atrRemarks}</p>
+            </div>
+          )}
           
           {/* Documents & Case Evidence Timeline */}
           <div>
@@ -549,6 +697,43 @@ export default function OfficerCaseDetail() {
 
       <ChatThread caseId={grievance.caseId} role="officer" authToken={officerToken} />
 
+      {/* Action Taken Report (ATR) Submission Modal */}
+      <Dialog open={showAtrModal} onOpenChange={setShowAtrModal}>
+        <DialogContent className="max-w-md p-6 bg-white rounded-2xl shadow-xl border border-gray-100">
+          <DialogHeader className="gap-2">
+            <div className="p-2.5 bg-emerald-100 text-emerald-700 rounded-xl w-fit">
+              <FileCheck className="w-5 h-5" />
+            </div>
+            <DialogTitle className="text-base font-bold text-gray-900">
+              Submit Action Taken Report (ATR) & Dispose Case
+            </DialogTitle>
+            <DialogDescription className="text-xs text-gray-600">
+              Stage 7: Provide formal resolution details. This will be published in the CPGRAMS public disposal registry.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="my-3 space-y-2">
+            <label className="text-xs font-semibold text-gray-700">Action Taken Report (ATR) Summary</label>
+            <Textarea
+              value={atrRemarksInput}
+              onChange={(e) => setAtrRemarksInput(e.target.value)}
+              placeholder="Detail on-site rectification, administrative action, and compliance measures taken..."
+              className="min-h-[110px] bg-[#F9FAFB] text-xs"
+            />
+          </div>
+          <DialogFooter className="flex justify-end gap-2 border-t pt-3">
+            <Button variant="outline" size="sm" onClick={() => setShowAtrModal(false)}>Cancel</Button>
+            <Button
+              size="sm"
+              onClick={handleStatusUpdate}
+              disabled={!atrRemarksInput.trim() || updating}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs"
+            >
+              {updating ? "Submitting..." : "Submit ATR & Mark Disposed"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Status Update Confirmation Modal */}
       <ConfirmModal
         isOpen={showStatusConfirm}
@@ -561,12 +746,34 @@ export default function OfficerCaseDetail() {
         description={
           <div className="space-y-2 pt-1">
             <p className="text-xs text-gray-600">
-              Are you sure you want to change the status of Case <strong className="text-indigo-600">{caseId}</strong> from <span className="capitalize font-semibold">{grievance.status.replace('_', ' ')}</span> to:
+              Are you sure you want to change the status of Case <strong className="text-indigo-600">{caseId}</strong> to:
             </p>
             <div className="p-2 bg-indigo-50 border border-indigo-200 rounded-lg text-center font-bold text-sm text-[#5E6AD2] uppercase tracking-wide">
               {statusInput.replace('_', ' ')}
             </div>
             <p className="text-[11px] text-gray-500">This will update the citizen timeline and log an immutable audit event.</p>
+          </div>
+        }
+      />
+
+      {/* Appellate Decision Confirmation Modal */}
+      <ConfirmModal
+        isOpen={showAppealDecisionConfirm}
+        onClose={() => setShowAppealDecisionConfirm(false)}
+        onConfirm={handleAppealDecision}
+        loading={decidingAppeal}
+        title="Issue Formal Appellate Order?"
+        icon="warning"
+        variant="warning"
+        confirmText="Confirm Appellate Order"
+        description={
+          <div className="space-y-2 pt-1 text-xs text-gray-600">
+            <p>You are issuing an Appellate Authority order with decision: <strong className="text-indigo-700 uppercase">{appealDecision.replace(/_/g, ' ')}</strong>.</p>
+            {appealOrderRemarks && (
+              <div className="p-2 bg-gray-50 border border-gray-200 rounded-lg italic text-gray-800">
+                &ldquo;{appealOrderRemarks}&rdquo;
+              </div>
+            )}
           </div>
         }
       />
