@@ -238,7 +238,16 @@ export default function CitizenCaseDetail() {
         setShowFeedbackConfirm(false);
         toast({ title: "Feedback Recorded", description: "Thank you for rating the grievance redressal." });
         fetchCaseData(token);
+      } else {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || `Feedback submission failed (${res.status}).`);
       }
+    } catch (err: any) {
+      toast({
+        title: "Feedback Submission Failed",
+        description: err.message,
+        variant: "destructive",
+      });
     } finally {
       setSubmittingFeedback(false);
     }
