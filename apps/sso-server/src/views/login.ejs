@@ -1,58 +1,306 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="light">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>CivID — Login</title>
-  <link href="https://cdn.jsdelivr.net/npm/daisyui@5" rel="stylesheet" type="text/css" />
+  <title>CivID - Login</title>
   <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --orange-bg: #F97316;
+      --warm-white: #FFF7ED;
+      --illustration-bg: #FAFAF8;
+      --sketch-primary: #2F2B27;
+      --sketch-secondary: #6B6560;
+    }
+    body { font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; margin: 0; padding: 0; }
+    .sketch-font { font-family: 'Caveat', cursive; }
+    .orange-panel {
+      background-color: var(--orange-bg);
+      background-image: radial-gradient(circle at 2px 2px, rgba(255,255,255,0.07) 1px, transparent 0),
+                        radial-gradient(circle at 0.5px 0.5px, rgba(0,0,0,0.05) 0.5px, transparent 0);
+      background-size: 8px 8px;
+    }
+  </style>
 </head>
 <body>
-  <div class="hero min-h-screen bg-base-200">
-    <div class="hero-content flex-col w-full max-w-md">
+  <div class="flex min-h-screen">
 
-      <div class="text-center mb-4">
-        <h1 class="text-4xl font-bold tracking-tight">Civ<span class="text-primary">ID</span></h1>
-        <p class="text-base-content/60 mt-2">Verify your identity. Protect it too.</p>
+    <!-- ================= LEFT: Authentication Panel (40%) ================= -->
+    <div class="orange-panel flex flex-col w-full md:w-5/12 text-white">
+
+      <!-- Logo near the top -->
+      <div class="px-16 md:px-20 pt-10">
+        <div class="flex items-center gap-3">
+          <div class="w-11 h-11 bg-white/25 rounded-xl flex items-center justify-center border border-white/40">
+            <span class="text-white font-bold text-lg">CID</span>
+          </div>
+          <span class="text-2xl font-bold tracking-tighter">Civ<span class="text-white">ID</span></span>
+        </div>
       </div>
 
-      <div class="card bg-base-100 w-full shadow-xl">
-        <div class="card-body">
-          <h2 class="card-title justify-center">Sign in with Aadhaar</h2>
+      <!-- Login block, vertically centered in remaining space -->
+      <div class="flex-1 flex items-center px-16 md:px-20 py-10">
+        <div class="w-full max-w-sm mx-auto">
+          <h1 class="text-4xl md:text-[2.6rem] font-bold leading-tight mb-3">Welcome to CivID</h1>
+          <p class="text-base text-warm-white/85 mb-8">Verify your identity. Protect it too.</p>
 
           <% if (error) { %>
-            <div role="alert" class="alert alert-error alert-soft mt-2">
-              <span><%= error %></span>
-            </div>
+            <div class="mb-5 p-3 bg-white/10 border border-white/25 rounded-lg text-sm"><%= error %></div>
           <% } %>
 
-          <form method="POST" action="/interaction/<%= uid %>/login" class="mt-4">
-            <label class="floating-label w-full">
+          <!-- Aadhaar form - existing logic preserved exactly -->
+          <form method="POST" action="/interaction/<%= uid %>/login" class="space-y-5">
+            <div class="space-y-2">
+              <label class="block text-sm font-medium text-warm-white/90">Aadhaar Number</label>
               <input
                 type="text"
                 name="aadhaar"
-                placeholder="Aadhaar Number"
-                class="input input-primary w-full"
+                id="aadhaar"
+                placeholder="12-digit Aadhaar number"
+                class="w-full px-4 py-3 bg-white/5 border border-white/40 rounded-xl text-white placeholder-warm-white/40 focus:outline-none focus:ring-2 focus:ring-white/50 transition-all"
                 maxlength="12"
                 pattern="\d{12}"
                 inputmode="numeric"
                 required
                 autofocus
               />
-              <span>Aadhaar Number (12 digits)</span>
-            </label>
-
-            <div class="card-actions mt-6">
-              <button type="submit" class="btn btn-primary btn-block">Continue</button>
             </div>
+            <button type="submit" class="w-full py-3.5 bg-white text-orange-bg font-semibold text-base rounded-xl hover:bg-warm-white/90 transition-all duration-200 shadow-md hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-white/50">
+              Continue with Aadhaar
+            </button>
           </form>
 
-          <p class="text-center text-base-content/50 text-xs mt-4">
+          <p class="text-xs text-warm-white/70 mt-7 leading-relaxed">
             Your identity is verified but never disclosed to the officer.
           </p>
         </div>
       </div>
 
+      <!-- Supporting / demo text below the form -->
+      <div class="px-16 md:px-20 pb-8">
+        <p class="text-xs text-warm-white/60 leading-relaxed">
+          Demo environment — enter any seed Aadhaar number (e.g. 1234 5678 9012).
+          Demo credentials are displayed on the OTP screen.
+        </p>
+      </div>
+    </div>
+
+    <!-- ================= RIGHT: Hand-drawn Product Flow (60%) ================= -->
+    <div class="hidden md:flex w-7/12 bg-illustration-bg relative overflow-hidden">
+      <div class="w-[88%] max-w-4xl mx-auto flex flex-col justify-center py-10">
+
+        <!-- Heading -->
+        <div class="text-center mb-10">
+          <h2 class="sketch-font font-bold text-6xl lg:text-7xl text-sketch-primary" style="transform: rotate(-1.5deg); display: inline-block;">
+            How CivID SSO Works
+          </h2>
+          <div class="w-52 mx-auto mt-1">
+            <svg width="100%" height="10" viewBox="0 0 200 10" preserveAspectRatio="none">
+              <path d="M2,6 C25,2 50,8 75,5 C100,2 125,8 150,5 C170,3 185,7 198,5"
+                    stroke="#F97316" stroke-width="3.5" fill="none"
+                    stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+        </div>
+
+        <!-- ============ TOP ROW: horizontal identity flow ============ -->
+        <div class="flex items-start justify-between">
+
+          <!-- Citizen -->
+          <div class="flex flex-col items-center w-40 text-center">
+            <svg width="92" height="92" viewBox="0 0 96 96">
+              <circle cx="48" cy="26" r="14" stroke="#2F2B27" stroke-width="2.5" fill="none"/>
+              <path d="M30 72 C30 56 36 48 48 48 C60 48 66 56 66 72" stroke="#2F2B27" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+              <path d="M26 74 C24 72 24 68 26 66" stroke="#2F2B27" stroke-width="2" fill="none" stroke-linecap="round"/>
+              <!-- aadhaar card in hand -->
+              <rect x="58" y="58" width="26" height="17" rx="3" stroke="#2F2B27" stroke-width="2" fill="none" transform="rotate(8 71 66)"/>
+              <line x1="64" y1="65" x2="78" y2="67" stroke="#2F2B27" stroke-width="1.5" transform="rotate(8 71 66)"/>
+              <line x1="64" y1="70" x2="74" y2="71" stroke="#2F2B27" stroke-width="1.5" transform="rotate(8 71 66)"/>
+            </svg>
+            <div class="sketch-font font-bold text-2xl text-sketch-primary mt-1">Aadhaar + OTP</div>
+            <div class="text-sm text-sketch-secondary mt-1 leading-snug">Citizen proves identity</div>
+          </div>
+
+          <!-- arrow -->
+          <div class="mt-11">
+            <svg width="66" height="22" viewBox="0 0 66 22">
+              <path d="M3,14 C18,6 40,8 58,12" stroke="#2F2B27" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-dasharray="6,5"/>
+              <polygon points="62,13 54,8 55,16" fill="#2F2B27"/>
+            </svg>
+          </div>
+
+          <!-- CivID Vault -->
+          <div class="flex flex-col items-center w-44 text-center">
+            <svg width="92" height="92" viewBox="0 0 96 96">
+              <rect x="14" y="24" width="68" height="52" rx="9" stroke="#2F2B27" stroke-width="2.5" fill="none"/>
+              <rect x="14" y="24" width="68" height="52" rx="9" stroke="#2F2B27" stroke-width="1" fill="none" transform="rotate(-1.5 48 50)"/>
+              <circle cx="48" cy="50" r="13" stroke="#2F2B27" stroke-width="2.5" fill="none"/>
+              <line x1="48" y1="50" x2="48" y2="41" stroke="#2F2B27" stroke-width="2.5" stroke-linecap="round"/>
+              <line x1="48" y1="50" x2="55" y2="54" stroke="#2F2B27" stroke-width="2" stroke-linecap="round"/>
+              <path d="M32,24 C32,15 38,11 48,11 C58,11 64,15 64,24" stroke="#2F2B27" stroke-width="2.5" fill="none"/>
+            </svg>
+            <div class="sketch-font font-bold text-2xl text-sketch-primary mt-1">CivID Vault</div>
+            <div class="text-sm text-sketch-secondary mt-1 leading-snug">Real identity stored here only</div>
+          </div>
+
+          <!-- arrow -->
+          <div class="mt-11">
+            <svg width="66" height="22" viewBox="0 0 66 22">
+              <path d="M3,14 C18,6 40,8 58,12" stroke="#2F2B27" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-dasharray="6,5"/>
+              <polygon points="62,13 54,8 55,16" fill="#2F2B27"/>
+            </svg>
+          </div>
+
+          <!-- PII Barrier -->
+          <div class="flex flex-col items-center w-40 text-center">
+            <svg width="92" height="92" viewBox="0 0 96 96">
+              <path d="M48 10 L76 22 L76 42 C76 60 64 74 48 82 C32 74 20 60 20 42 L20 22 Z" stroke="#2F2B27" stroke-width="2.5" fill="none"/>
+              <path d="M48 12 L74 23 L74 42 C74 58 63 71 48 79" stroke="#2F2B27" stroke-width="1" fill="none"/>
+              <circle cx="48" cy="46" r="6" stroke="#2F2B27" stroke-width="2.5" fill="none"/>
+              <path d="M48 52 L48 62" stroke="#2F2B27" stroke-width="2.5" stroke-linecap="round"/>
+              <path d="M33 24 L63 60" stroke="#F97316" stroke-width="3" stroke-linecap="round"/>
+            </svg>
+            <div class="sketch-font font-bold text-2xl text-sketch-primary mt-1">Zero Knowledge</div>
+            <div class="text-sm text-sketch-secondary mt-1 leading-snug">Real identity remains inside CivID</div>
+          </div>
+
+          <!-- arrow -->
+          <div class="mt-11">
+            <svg width="66" height="22" viewBox="0 0 66 22">
+              <path d="M3,14 C18,6 40,8 58,12" stroke="#2F2B27" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-dasharray="6,5"/>
+              <polygon points="62,13 54,8 55,16" fill="#2F2B27"/>
+            </svg>
+          </div>
+
+          <!-- Officer Desk -->
+          <div class="flex flex-col items-center w-44 text-center">
+            <svg width="92" height="92" viewBox="0 0 96 96">
+              <circle cx="34" cy="22" r="9" stroke="#2F2B27" stroke-width="2.5" fill="none"/>
+              <path d="M22 44 C22 34 26 30 34 30 C42 30 46 34 46 44" stroke="#2F2B27" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+              <rect x="12" y="52" width="56" height="7" rx="2" stroke="#2F2B27" stroke-width="2.5" fill="none"/>
+              <line x1="18" y1="59" x2="18" y2="76" stroke="#2F2B27" stroke-width="2.5" stroke-linecap="round"/>
+              <line x1="62" y1="59" x2="62" y2="76" stroke="#2F2B27" stroke-width="2.5" stroke-linecap="round"/>
+              <!-- case file on desk -->
+              <rect x="62" y="36" width="24" height="16" rx="2" stroke="#2F2B27" stroke-width="2" fill="none" transform="rotate(6 74 44)"/>
+              <line x1="67" y1="42" x2="81" y2="43" stroke="#2F2B27" stroke-width="1.5" transform="rotate(6 74 44)"/>
+              <text x="70" y="52" class="sketch-font" font-size="9" fill="#F97316" transform="rotate(6 74 44)">CPG-7X9K2</text>
+            </svg>
+            <div class="sketch-font font-bold text-2xl text-sketch-primary mt-1">Officer Access</div>
+            <div class="text-sm text-sketch-secondary mt-1 leading-snug">Only pseudonymous evidence is exposed</div>
+          </div>
+        </div>
+
+        <!-- ============ TRANSFORMATION BAND: HMAC -> Pairwise ID ============ -->
+        <!-- vertical dashed arrow down from the flow -->
+        <div class="flex justify-center my-4">
+          <svg width="22" height="58" viewBox="0 0 22 58">
+            <path d="M11,3 C9,18 13,34 11,48" stroke="#2F2B27" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-dasharray="6,5"/>
+            <polygon points="11,54 6,46 16,46" fill="#2F2B27"/>
+          </svg>
+        </div>
+
+        <div class="flex items-center justify-center gap-10">
+          <!-- HMAC Sealing -->
+          <div class="flex items-center gap-4">
+            <svg width="64" height="64" viewBox="0 0 64 64">
+              <rect x="14" y="28" width="36" height="26" rx="6" stroke="#2F2B27" stroke-width="2.5" fill="none"/>
+              <path d="M20,28 C20,18 25,13 32,13 C39,13 44,18 44,28" stroke="#2F2B27" stroke-width="2.5" fill="none"/>
+              <circle cx="32" cy="40" r="4" stroke="#2F2B27" stroke-width="2" fill="none"/>
+              <path d="M32 44 L32 49" stroke="#2F2B27" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+            <div>
+              <div class="sketch-font font-bold text-2xl text-sketch-primary">HMAC Sealing</div>
+              <div class="text-sm text-sketch-secondary leading-snug">Identity becomes a deterministic<br/>pairwise identifier</div>
+            </div>
+          </div>
+
+          <!-- arrow -->
+          <svg width="56" height="20" viewBox="0 0 56 20">
+            <path d="M3,12 C15,5 34,7 47,11" stroke="#2F2B27" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-dasharray="5,4"/>
+            <polygon points="52,12 44,7 45,15" fill="#2F2B27"/>
+          </svg>
+
+          <!-- Pairwise ID card -->
+          <div class="flex items-center gap-4">
+            <svg width="64" height="64" viewBox="0 0 64 64">
+              <rect x="8" y="16" width="48" height="32" rx="5" stroke="#2F2B27" stroke-width="2.5" fill="none"/>
+              <circle cx="22" cy="32" r="6" stroke="#2F2B27" stroke-width="2" fill="none"/>
+              <path d="M18 40 C18 37 20 36 22 36 C24 36 26 37 26 40" stroke="#2F2B27" stroke-width="2" fill="none"/>
+              <line x1="34" y1="26" x2="50" y2="26" stroke="#F97316" stroke-width="2.5" stroke-linecap="round"/>
+              <line x1="34" y1="33" x2="50" y2="33" stroke="#2F2B27" stroke-width="2" stroke-linecap="round"/>
+              <line x1="34" y1="40" x2="44" y2="40" stroke="#2F2B27" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+            <div>
+              <div class="sketch-font font-bold text-2xl text-sketch-primary">Pairwise ID</div>
+              <div class="text-sm text-sketch-secondary leading-snug">One pseudonym per service —<br/>never the real name</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ============ JUDICIAL DISCLOSURE PATH ============ -->
+        <div class="flex justify-center mt-6">
+          <svg width="22" height="54" viewBox="0 0 22 54">
+            <path d="M11,3 C13,18 9,34 11,44" stroke="#8A847E" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-dasharray="6,5"/>
+            <polygon points="11,50 6,42 16,42" fill="#8A847E"/>
+          </svg>
+        </div>
+
+        <div class="flex justify-center mt-2">
+          <div class="flex items-center gap-5 border-2 border-dashed border-sketch-secondary/50 rounded-2xl px-8 py-4">
+            <svg width="56" height="56" viewBox="0 0 64 64">
+              <rect x="20" y="12" width="20" height="14" rx="2" stroke="#2F2B27" stroke-width="2.5" fill="none" transform="rotate(-14 30 19)"/>
+              <line x1="34" y1="26" x2="28" y2="46" stroke="#2F2B27" stroke-width="2.5" stroke-linecap="round"/>
+              <rect x="14" y="48" width="32" height="6" rx="2" stroke="#2F2B27" stroke-width="2.5" fill="none"/>
+              <path d="M48 14 C50 20 56 20 58 14" stroke="#2F2B27" stroke-width="2" fill="none"/>
+              <line x1="53" y1="20" x2="53" y2="34" stroke="#2F2B27" stroke-width="2"/>
+              <path d="M45 34 L61 34" stroke="#2F2B27" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+            <div>
+              <div class="sketch-font font-bold text-2xl text-sketch-primary">Judicial Gateway</div>
+              <div class="text-sm text-sketch-secondary leading-snug">Only a court order can unlock real identity — every reveal is logged</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ============ HIGHLIGHTS BOX (75% width) ============ -->
+        <div class="mt-10 mx-auto w-full md:w-[78%] border-2 border-sketch-secondary/40 rounded-[1.6rem] px-8 py-6 bg-white/60">
+          <div class="grid grid-cols-3 gap-6">
+            <!-- Feature 1 -->
+            <div class="flex flex-col items-center text-center">
+              <svg width="52" height="52" viewBox="0 0 64 64">
+                <path d="M32 6 L50 14 L50 30 C50 42 42 52 32 57 C22 52 14 42 14 30 L14 14 Z" stroke="#2F2B27" stroke-width="2.5" fill="none"/>
+                <path d="M24 30 L30 37 L41 24" stroke="#F97316" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              <div class="sketch-font font-bold text-xl text-sketch-primary mt-1">Zero-PII Filing</div>
+              <div class="text-sm text-sketch-secondary leading-snug mt-1">Real identity never reaches the grievance system</div>
+            </div>
+            <!-- Feature 2 -->
+            <div class="flex flex-col items-center text-center">
+              <svg width="52" height="52" viewBox="0 0 64 64">
+                <circle cx="32" cy="32" r="24" stroke="#2F2B27" stroke-width="2.5" fill="none"/>
+                <path d="M22 33 L29 41 L43 24" stroke="#2F2B27" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M50 14 L58 22" stroke="#F97316" stroke-width="3" stroke-linecap="round"/>
+              </svg>
+              <div class="sketch-font font-bold text-xl text-sketch-primary mt-1">Auditable</div>
+              <div class="text-sm text-sketch-secondary leading-snug mt-1">Every disclosure is logged and reviewable</div>
+            </div>
+            <!-- Feature 3 -->
+            <div class="flex flex-col items-center text-center">
+              <svg width="52" height="52" viewBox="0 0 64 64">
+                <rect x="12" y="20" width="40" height="28" rx="5" stroke="#2F2B27" stroke-width="2.5" fill="none"/>
+                <line x1="20" y1="30" x2="34" y2="30" stroke="#F97316" stroke-width="3" stroke-linecap="round"/>
+                <line x1="20" y1="38" x2="44" y2="38" stroke="#2F2B27" stroke-width="2" stroke-linecap="round"/>
+                <line x1="20" y1="44" x2="38" y2="44" stroke="#2F2B27" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+              <div class="sketch-font font-bold text-xl text-sketch-primary mt-1">Deterministic</div>
+              <div class="text-sm text-sketch-secondary leading-snug mt-1">Same citizen, same service — same pairwise ID</div>
+            </div>
+          </div>
+        </div>
+
+      </div>
     </div>
   </div>
 </body>
