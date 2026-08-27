@@ -26,9 +26,24 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
+      # BullMQ (grievance-intelligence queue) creates the Redis Queue eagerly at
+      # module load (src/ai/queue/grievanceQueue.js), so a redis service must be
+      # reachable at 127.0.0.1:6379 or tests flood with:
+      #   [Queue] BullMQ queue error: connect ECONNREFUSED 127.0.0.1:6379
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 5
 
     env:
       MONGO_URI: mongodb://127.0.0.1:27017/cpgrams_db
+      # matches the src/config/redis.js default (redis://127.0.0.1:6379)
+      REDIS_URL: redis://127.0.0.1:6379
       # push.test.js authenticates external push requests with this key
       API_PUSH_KEYS: dev-push-key-12345
       NODE_ENV: test
