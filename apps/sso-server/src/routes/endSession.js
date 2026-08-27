@@ -1,0 +1,37 @@
+'use strict';
+
+module.exports = function endSessionRoutes(provider) {
+  const router = require('express').Router();
+
+  router.get('/logout', async (req, res) => {
+    try {
+      const cookieHeader = req.headers.cookie || '';
+      const sessionEntry = cookieHeader
+        .split(';')
+        .map(c => c.trim())
+        .find(c => c.startsWith('session='));
+
+      if (sessionEntry) {
+        const sessionId = sessionEntry.slice('session='.length);
+        try {
+          const session = await provider.Session.find(sessionId);
+          if (session) {
+            await session.destroy();
+          }
+        } catch (e) {
+          // ignore provider session store errors
+        }
+      }
+    } catch (e) {
+      // ignore
+    }
+
+    res.clearCookie('session', { path: '/' });
+    res.clearCookie('session.sig', { path: '/' });
+
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    res.redirect(`${frontendUrl}/?logged_out=1`);
+  });
+
+  return router;
+};

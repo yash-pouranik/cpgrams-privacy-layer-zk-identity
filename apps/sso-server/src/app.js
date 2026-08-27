@@ -30,6 +30,9 @@ app.use('/interaction', require('./routes/interaction')(provider));
 // ---- Disclosure API (internal — CPGRAMS calls this) ----
 app.use('/internal', require('./routes/disclosure'));
 
+// ---- End session (logout) - must come before oidc-provider callback ----
+app.use('/oidc', require('./routes/endSession')(provider));
+
 // ---- Mount oidc-provider (handles /oidc/... routes) ----
 app.use('/oidc', provider.callback());
 
