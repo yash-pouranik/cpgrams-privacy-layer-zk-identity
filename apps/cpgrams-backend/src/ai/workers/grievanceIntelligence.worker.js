@@ -18,10 +18,12 @@ const { nanoid } = require('nanoid');
 const AiCaseAnalysis = require('../../models/AiCaseAnalysis');
 const AiAgentRun     = require('../../models/AiAgentRun');
 const Case           = require('../../models/Case');
+const Officer        = require('../../models/Officer');
 const { Worker } = require('bullmq');
 const { QUEUE_NAME } = require('../queue/grievanceQueue');
 const { createRedisConnection } = require('../../config/redis');
 const { autoAssignWithAI } = require('../../services/autoAssign');
+const { publishAiEvent } = require('../../services/aiEvents');
 const {
   AI_TRIAGE_ENABLED,
   AI_DOCUMENT_ENABLED,
@@ -74,6 +76,14 @@ async function logAgentRun(caseId, agent, status, opts = {}) {
     });
   } catch (err) {
     console.warn(`[Worker] Failed to log agent run (${caseId}/${agent}):`, err.message);
+  }
+}
+
+async function publishAiEventSafe(eventType, payload) {
+  try {
+    await publishAiEvent(eventType, payload);
+  } catch (err) {
+    console.warn(`[Worker] Failed to publish AI event ${eventType} (${payload?.caseId || 'unknown'}):`, err.message);
   }
 }
 
@@ -250,6 +260,9 @@ async function processGrievanceIntelligence(job) {
         const latencyMs = Date.now() - t0;
         results.evidenceSummary = res.output;
         await AiCaseAnalysis.findOneAndUpdate({ caseId }, { $set: { evidenceSummary: res.output } });
+        if (Number(res.output?.resultCount || 0) > 0) {
+          await publishAiEventSafe('AI_EVIDENCE_FOUND', { caseId, metadata: { resultCount: res.output.resultCount, corroborationSignal: res.output.corroborationSignal || 'NONE' } });
+        }
         await logAgentRun(caseId, 'evidence', 'completed', { input, ...res, latencyMs });
         console.log(`[Worker] Agent 5 (Evidence) ✓ ${latencyMs}ms`);
       } catch (err) {
@@ -270,12 +283,52 @@ async function processGrievanceIntelligence(job) {
     if (runAssignmentAgent) {
       try {
         const t0 = Date.now();
-        const input = { caseId, triageResult: results.triage, qualityResult: results.quality, currentOfficerAssignment: caseData.assignedOfficerId };
+        const input = {
+          caseId,
+          category: caseData.category,
+          description: caseData.description,
+          triageResult: results.triage,
+          qualityResult: results.quality,
+          currentOfficerAssignment: caseData.assignedOfficerId,
+        };
         const res = await runAssignmentAgent(input);
         const latencyMs = Date.now() - t0;
-        results.assignment = res.output;
-        await AiCaseAnalysis.findOneAndUpdate({ caseId }, { $set: { assignment: res.output } });
-        await logAgentRun(caseId, 'assignment', 'completed', { input, ...res, latencyMs });
+        let assignmentOutput = res.output;
+
+        if (assignmentOutput?.recommendedOfficerId && !caseData.assignedOfficerId) {
+          const updateResult = await Case.updateOne(
+            { caseId, assignedOfficerId: null },
+            {
+              $set: {
+                assignedOfficerId: assignmentOutput.recommendedOfficerId,
+                department: assignmentOutput.recommendedDepartment,
+              },
+            }
+          );
+          const applied = Boolean(updateResult.modifiedCount || updateResult.nModified);
+          assignmentOutput = {
+            ...assignmentOutput,
+            assignmentApplied: applied,
+            appliedOfficerId: applied ? assignmentOutput.recommendedOfficerId : null,
+          };
+          if (applied) {
+            await Officer.updateOne({ officerId: assignmentOutput.recommendedOfficerId, isAvailable: true }, { $inc: { currentCaseCount: 1 } });
+            await publishAiEventSafe('CASE_ASSIGNED', {
+              caseId,
+              metadata: {
+                officerId: assignmentOutput.recommendedOfficerId,
+                department: assignmentOutput.recommendedDepartment,
+                assignmentScore: assignmentOutput.assignmentScore,
+                slaRisk: assignmentOutput.slaRisk,
+                selectionMethod: assignmentOutput.selectionMethod,
+              },
+            });
+          }
+        }
+
+        results.assignment = assignmentOutput;
+        await AiCaseAnalysis.findOneAndUpdate({ caseId }, { $set: { assignment: assignmentOutput } });
+        await logAgentRun(caseId, 'assignment', 'completed', { input, ...res, output: assignmentOutput, latencyMs });
         console.log(`[Worker] Agent 4 (Assignment) ✓ ${latencyMs}ms`);
       } catch (err) {
         console.error(`[Worker] Agent 4 (Assignment) ✗:`, err.message);
@@ -309,6 +362,9 @@ async function processGrievanceIntelligence(job) {
           { caseId },
           { $set: { assignment: recommendation } }
         );
+        if (recommendation?.officerId && !caseData.assignedOfficerId) {
+          await publishAiEventSafe('CASE_ASSIGNED', { caseId, metadata: { officerId: recommendation.officerId, department: recommendation.resolvedDepartment } });
+        }
         await logAgentRun(caseId, 'assignment', 'completed', {
           input: { caseId, triageResult: results.triage, currentOfficerAssignment: caseData.assignedOfficerId },
           output: recommendation,
@@ -323,6 +379,13 @@ async function processGrievanceIntelligence(job) {
     }
   } else {
     await logAgentRun(caseId, 'assignment', 'skipped', {});
+  }
+
+  if (['HIGH', 'CRITICAL'].includes(results.triage?.priority?.level)) {
+    await publishAiEventSafe('CASE_HIGH_PRIORITY', {
+      caseId,
+      metadata: { priority: results.triage.priority.level, score: results.triage.priority.score },
+    });
   }
 
   // ── Brief Generator ───────────────────────────────────────────────────────

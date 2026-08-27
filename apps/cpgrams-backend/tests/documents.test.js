@@ -11,6 +11,7 @@ const Case = require('../src/models/Case');
 const Document = require('../src/models/Document');
 const AiCaseAnalysis = require('../src/models/AiCaseAnalysis');
 const Evidence = require('../src/models/Evidence');
+const AuditLog = require('../src/models/AuditLog');
 const { signOfficerToken } = require('../src/services/officerAuth');
 
 test('Document Upload & Management API', async (t) => {
@@ -24,6 +25,7 @@ test('Document Upload & Management API', async (t) => {
       await Document.deleteMany({ caseId });
       await AiCaseAnalysis.deleteMany({ caseId });
       await Evidence.deleteMany({ caseId });
+      await AuditLog.deleteMany({ targetCaseId: caseId });
     } finally {
       await mongoose.disconnect();
     }
@@ -34,6 +36,7 @@ test('Document Upload & Management API', async (t) => {
     await Document.deleteMany({ caseId });
     await AiCaseAnalysis.deleteMany({ caseId });
     await Evidence.deleteMany({ caseId });
+    await AuditLog.deleteMany({ targetCaseId: caseId });
 
   await Case.create({
     caseId,
@@ -131,5 +134,39 @@ test('Document Upload & Management API', async (t) => {
     assert.equal(res.body[0].evidenceId, 'EVD-DOC-TEST');
     assert.equal(res.body[0].sourceType, 'GOVERNMENT');
     assert.equal(res.body[0].evidenceConfidence, 0.91);
+  });
+
+  await t.test('PATCH evidence accepts a review-pending source and audit logs it', async () => {
+    const res = await request(app)
+      .patch(`/officer/case/${caseId}/evidence/EVD-DOC-TEST`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({ status: 'ACCEPTED' })
+      .expect(200);
+
+    assert.equal(res.body.status, 'ACCEPTED');
+    const audit = await AuditLog.findOne({ targetCaseId: caseId, eventType: 'evidence_reviewed' }).lean();
+    assert.equal(audit.actorId, officerId);
+    assert.equal(audit.metadata.evidenceId, 'EVD-DOC-TEST');
+    assert.equal(audit.metadata.previousStatus, 'REVIEW_PENDING');
+    assert.equal(audit.metadata.newStatus, 'ACCEPTED');
+  });
+
+  await t.test('PATCH evidence rejects an already reviewed source', async () => {
+    const res = await request(app)
+      .patch(`/officer/case/${caseId}/evidence/EVD-DOC-TEST`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({ status: 'REJECTED' })
+      .expect(409);
+
+    assert.match(res.body.error, /already been accepted/);
+  });
+
+  await t.test('PATCH evidence rejects an unassigned officer', async () => {
+    const otherToken = signOfficerToken({ officerId: 'HEALTH-001', name: 'Dr. Roy', department: 'Health' });
+    await request(app)
+      .patch(`/officer/case/${caseId}/evidence/EVD-DOC-TEST`)
+      .set('Authorization', `Bearer ${otherToken}`)
+      .send({ status: 'REJECTED' })
+      .expect(403);
   });
 });

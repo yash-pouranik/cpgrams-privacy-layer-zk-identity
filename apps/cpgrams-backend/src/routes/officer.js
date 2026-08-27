@@ -6,6 +6,7 @@ const Officer = require('../models/Officer');
 const Message = require('../models/Message');
 const DisclosureRequest = require('../models/DisclosureRequest');
 const AuditLog = require('../models/AuditLog');
+const Evidence = require('../models/Evidence');
 const {
   verifyPassword,
   signOfficerToken,
@@ -234,6 +235,58 @@ router.patch('/case/:caseId/status', async (req, res) => {
     return res.json(response);
   } catch (err) {
     console.error('Update status error:', err);
+    return res.status(500).json({ error: 'Internal server error.' });
+  }
+});
+
+/**
+ * PATCH /officer/case/:caseId/evidence/:evidenceId
+ * Accept or reject a public-source evidence artifact after officer review.
+ * Body: { status: 'ACCEPTED' | 'REJECTED' }
+ */
+router.patch('/case/:caseId/evidence/:evidenceId', async (req, res) => {
+  try {
+    const { status } = req.body;
+    if (!['ACCEPTED', 'REJECTED'].includes(status)) {
+      return res.status(400).json({ error: "status must be either 'ACCEPTED' or 'REJECTED'." });
+    }
+
+    const grievance = await Case.findOne({ caseId: req.params.caseId }).select('caseId assignedOfficerId');
+    if (!grievance) return res.status(404).json({ error: 'Case not found.' });
+    if (grievance.assignedOfficerId !== req.officer.officerId) {
+      return res.status(403).json({ error: 'Forbidden. Case assigned to a different officer.' });
+    }
+
+    const evidence = await Evidence.findOne({
+      evidenceId: req.params.evidenceId,
+      caseId: req.params.caseId,
+    });
+    if (!evidence) return res.status(404).json({ error: 'Evidence not found.' });
+    if (evidence.status !== 'REVIEW_PENDING') {
+      return res.status(409).json({
+        error: `Evidence has already been ${evidence.status.toLowerCase()}.`,
+        evidence: evidence.toObject(),
+      });
+    }
+
+    const previousStatus = evidence.status;
+    evidence.status = status;
+    await evidence.save();
+
+    await AuditLog.create({
+      eventType: 'evidence_reviewed',
+      actorId: req.officer.officerId,
+      targetCaseId: req.params.caseId,
+      metadata: {
+        evidenceId: evidence.evidenceId,
+        previousStatus,
+        newStatus: status,
+      },
+    });
+
+    return res.json(evidence.toObject());
+  } catch (err) {
+    console.error('Evidence review error:', err);
     return res.status(500).json({ error: 'Internal server error.' });
   }
 });

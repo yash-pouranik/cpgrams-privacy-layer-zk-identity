@@ -9,6 +9,9 @@ const officerSchema = new mongoose.Schema({
   level: { type: Number, required: true, min: 1, max: 3 },
   isAvailable: { type: Boolean, default: true },
   currentCaseCount: { type: Number, default: 0 },
+  expertise: { type: [String], default: [] },
+  jurisdictions: { type: [String], default: [] },
+  averageResolutionDays: { type: Number, default: 14 },
   passwordHash: { type: String, default: null },
   createdAt: { type: Date, default: Date.now },
 });

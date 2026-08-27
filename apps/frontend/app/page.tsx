@@ -2,304 +2,631 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { ArrowRight, ChevronDown, ChevronUp, Shield, Eye, EyeOff, Phone, Lock, FileText } from "lucide-react";
+import { 
+  ArrowRight, 
+  ChevronDown, 
+  ChevronUp, 
+  Shield, 
+  Eye, 
+  EyeOff, 
+  Phone, 
+  Lock, 
+  FileText, 
+  CheckCircle2, 
+  UserCheck, 
+  Building2, 
+  Scale, 
+  Sparkles, 
+  ArrowUpRight 
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AshokaEmblem } from "@/components/AshokaEmblem";
 import { QuickStatusWidget } from "@/components/QuickStatusWidget";
+import { IdentityVaultSimulator } from "@/components/IdentityVaultSimulator";
+import { BentoSecurityGrid } from "@/components/BentoSecurityGrid";
+import { HeroBackgroundEffects } from "@/components/HeroBackgroundEffects";
+import { PencilArchitectureShowcase } from "@/components/PencilArchitectureShowcase";
 
-/* ─── Data ────────────────────────────────────────────────────────────────── */
+/* ─── Static Data ─────────────────────────────────────────────────────────── */
 
 const steps = [
-  { num: "01", title: "Verify via OTP", desc: "Aadhaar or Mobile OTP proves you're a genuine citizen.", note: "Identity stays sealed" },
-  { num: "02", title: "Describe the Issue", desc: "Pick a department, describe what happened, attach evidence.", note: "Instant Case ID generated" },
-  { num: "03", title: "Track & Resolve", desc: "Officer investigates within 14 days. Rate & appeal if needed.", note: "Free appeal if unsatisfied" },
+  { 
+    num: "01", 
+    title: "Authenticate via CivID SSO", 
+    desc: "Aadhaar eKYC or OTP proves you are a genuine citizen. Your credentials stay strictly within the isolated SSO vault.", 
+    note: "Identity Never Leaves SSO" 
+  },
+  { 
+    num: "02", 
+    title: "Deterministic Sealing & Case Filing", 
+    desc: "A 256-bit pairwise hash creates an anonymous Case ID. AI Drishti auto-routes the grievance to the exact nodal officer.", 
+    note: "Instant Non-Linkable Case ID" 
+  },
+  { 
+    num: "03", 
+    title: "Merit Redressal & Two-Way Chat", 
+    desc: "Officers investigate based on uploaded evidence and clarify doubts via masked chat without ever knowing your identity.", 
+    note: "14-Day Redressal Guarantee" 
+  },
 ];
 
-const categories = [
-  { name: "Roads & Potholes", dept: "PWD", color: "border-orange-400" },
-  { name: "Water & Drainage", dept: "PWD", color: "border-blue-400" },
-  { name: "Electricity & Power", dept: "PWD", color: "border-amber-400" },
-  { name: "Hospitals & Health", dept: "Health", color: "border-rose-400" },
-  { name: "Schools & Scholarships", dept: "Education", color: "border-indigo-400" },
-  { name: "Pensions & Welfare", dept: "Social", color: "border-emerald-400" },
+const departments = [
+  { name: "Public Works (PWD)", cases: "Roads, Bridges & Potholes", badge: "High Priority" },
+  { name: "Health & Family Welfare", cases: "Hospitals, Clinics & Medicine", badge: "Active" },
+  { name: "Power & Energy", cases: "Grid Outages & Billing", badge: "24x7 Redressal" },
+  { name: "School & Higher Education", cases: "Scholarships & Facilities", badge: "Direct Redressal" },
+  { name: "Road Transport & Highways", cases: "NHAI Tolls & Signage", badge: "Central" },
+  { name: "Social Justice & Welfare", cases: "Pensions & DBT Transfers", badge: "Fast-Track" },
 ];
 
 const faqs = [
   {
-    q: "Is there any fee to file a grievance?",
-    a: "No. CPGRAMS is 100% free. The Government of India does not charge any fee for lodging or resolving grievances.",
+    q: "How does the portal guarantee that the officer will never know my identity?",
+    a: "Our CivID privacy architecture completely isolates the identity database from the grievance database. The officer only receives a pseudonymous pairwise Case ID (e.g. CPG-7X9K2). Even if a malicious officer inspects the database, your name, phone number, and Aadhaar do not exist in the grievance system.",
   },
   {
-    q: "Will the officer know my phone number or name?",
-    a: "No. Your phone number, real name, and Aadhaar are never shared. The officer only sees an anonymous Case ID and your issue details.",
+    q: "Is there any fee to file a grievance on CPGRAMS?",
+    a: "No. CPGRAMS is a 100% free public service provided by the Government of India. There are zero charges for filing, tracking, or appealing grievances.",
   },
   {
-    q: "What if I'm not satisfied with the resolution?",
-    a: "Rate it 1-star and the portal automatically lets you file a First Appeal to senior authorities.",
+    q: "Can the officer retaliate or contact me on my personal phone?",
+    a: "No. Because the officer never receives your phone number, direct out-of-band harassment is impossible. All communications happen inside the built-in Masked Clarification Thread.",
+  },
+  {
+    q: "Under what conditions can citizen identity ever be unmasked?",
+    a: "Identity can ONLY be revealed pursuant to a certified Court Order signed by a judicial authority (e.g. in cases of severe national security or criminal fraud). Every unmasking attempt generates an immutable, permanent entry in the public audit trail.",
+  },
+  {
+    q: "What if I am not satisfied with the officer's resolution?",
+    a: "You can submit a 1-to-5 star rating upon resolution. Any rating under 3 stars unlocks an instant one-click First Appeal directly to the Appellate Authority.",
   },
 ];
 
-/* ─── Page ────────────────────────────────────────────────────────────────── */
+/* ─── Main Landing Page Component ─────────────────────────────────────────── */
 
 export default function LandingPage() {
   const loginUrl = `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/auth/login`;
   const [openFaq, setOpenFaq] = useState<number | null>(0);
+  const [activePersona, setActivePersona] = useState<"citizen" | "officer" | "judiciary">("citizen");
+  const [heroShowcase, setHeroShowcase] = useState<"pencil" | "simulator">("pencil");
 
   return (
-    <div className="flex flex-col min-h-screen bg-white text-slate-900 selection:bg-[#F6821F]/20 selection:text-slate-950 font-sans">
+    <div className="flex flex-col min-h-screen bg-white text-slate-900 selection:bg-orange-500/20 selection:text-orange-950 font-sans">
+      
+      <section className="relative pt-12 pb-16 px-4 sm:px-6 lg:px-8 border-b border-slate-200/80 bg-gradient-to-b from-slate-50/70 via-white to-white overflow-hidden">
+        
+        {/* Dynamic High-Trust Background Effects */}
+        <HeroBackgroundEffects />
 
-      {/* ═══════════════════════════════════════════════════════════════════ */}
-      {/* 1. HERO — punchy, breathing, minimal                              */}
-      {/* ═══════════════════════════════════════════════════════════════════ */}
-      <section className="min-h-[52vh] flex flex-col items-center justify-center text-center px-4 sm:px-8 py-16 border-b border-slate-100">
-        <div className="max-w-3xl mx-auto space-y-5">
-          {/* Pill */}
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-orange-50 text-[#C2410C] font-semibold text-[11px] border border-orange-200">
-            Government of India &bull; 100% Privacy Protected
-          </span>
+        <div className="max-w-6xl mx-auto space-y-8 text-center relative z-10">
+          
+          {/* Trust Badge */}
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white border border-slate-200 shadow-2xs text-xs font-semibold text-slate-800">
+            <span className="flex h-2 w-2 rounded-full bg-orange-600 animate-pulse" />
+            <span>Government of India</span>
+            <span className="text-slate-300">&bull;</span>
+            <span className="text-orange-600 font-bold">CivID Zero-Knowledge Privacy Architecture</span>
+          </div>
 
-          {/* Headline */}
-          <h1 className="text-4xl sm:text-5xl md:text-6xl font-black tracking-tight leading-[1.1] text-slate-950">
-            File a complaint.{" "}
-            <span className="text-[#EA580C]">Stay anonymous.</span>
-          </h1>
+          {/* Main Headline */}
+          <div className="space-y-4 max-w-4xl mx-auto">
+            <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold tracking-tight leading-[1.08] text-slate-950">
+              File a grievance fearlessly. <br className="hidden sm:inline" />
+              <span className="bg-gradient-to-r from-orange-600 via-amber-600 to-orange-700 bg-clip-text text-transparent">
+                Your identity is sealed in the vault.
+              </span>
+            </h1>
+            <p className="text-slate-600 text-base sm:text-lg md:text-xl max-w-2xl mx-auto leading-relaxed font-normal">
+              Redress public issues with any Central Ministry or State Department. Verified via Aadhaar eKYC, but your real identity is never exposed to the investigating officer.
+            </p>
+          </div>
 
-          {/* Sub */}
-          <p className="text-slate-500 text-base sm:text-lg max-w-xl mx-auto leading-relaxed">
-            Lodge grievances with any Government Department — privately, without fear of retaliation.
-          </p>
-
-          {/* CTAs */}
+          {/* Primary Action Buttons */}
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
             <Button
               asChild
               size="lg"
-              className="w-full sm:w-auto bg-[#F6821F] hover:bg-[#E06D0C] text-slate-950 font-bold text-sm px-8 py-6 rounded-xl shadow-sm cursor-pointer"
+              className="w-full sm:w-auto bg-orange-600 hover:bg-orange-700 text-white font-bold text-sm px-8 py-6 rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer"
             >
               <a href={loginUrl} className="flex items-center justify-center gap-2">
-                Lodge Grievance <ArrowRight className="w-4 h-4" />
+                <span>Lodge Protected Grievance</span>
+                <ArrowRight className="w-4 h-4" />
               </a>
             </Button>
+
             <Button
               asChild
               variant="outline"
               size="lg"
-              className="w-full sm:w-auto text-slate-700 border-slate-200 font-semibold text-sm px-8 py-6 rounded-xl"
+              className="w-full sm:w-auto text-slate-800 border-slate-300 hover:bg-slate-50 font-semibold text-sm px-8 py-6 rounded-xl shadow-2xs"
             >
-              <Link href="/status">Track Status</Link>
+              <Link href="/status">Track Grievance Status</Link>
             </Button>
           </div>
 
-          {/* Trust row */}
-          <div className="flex flex-wrap items-center justify-center gap-5 pt-3 text-xs text-slate-400 font-medium">
-            <span className="flex items-center gap-1"><Shield className="w-3 h-3" /> Aadhaar eKYC Verified</span>
-            <span className="flex items-center gap-1"><Lock className="w-3 h-3" /> Zero Retaliation</span>
-            <span className="flex items-center gap-1"><FileText className="w-3 h-3" /> 100% Free Service</span>
+          {/* Trust Guarantees Strip */}
+          <div className="flex flex-wrap items-center justify-center gap-6 pt-2 text-xs text-slate-500 font-medium">
+            <span className="flex items-center gap-1.5"><Shield className="w-3.5 h-3.5 text-emerald-600" /> Aadhaar eKYC Authenticated</span>
+            <span className="flex items-center gap-1.5"><Lock className="w-3.5 h-3.5 text-orange-600" /> 0% Officer Identity Leak</span>
+            <span className="flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5 text-indigo-600" /> 14-Day Redressal SLA</span>
+            <span className="flex items-center gap-1.5"><FileText className="w-3.5 h-3.5 text-slate-600" /> 100% Free Public Service</span>
+          </div>
+
+          {/* ═════════════════════════════════════════════════════════════ */}
+          {/* PRIMARY SHOWCASE: PENCIL SKETCH ARTWORK & SIMULATOR        */}
+          {/* ═════════════════════════════════════════════════════════════ */}
+          <div className="pt-6 max-w-5xl mx-auto space-y-4">
+            
+            {/* Mode Switcher Tabs */}
+            <div className="flex justify-center">
+              <div className="inline-flex p-1 rounded-xl bg-slate-100 border border-slate-200 text-xs font-bold shadow-2xs">
+                <button
+                  onClick={() => setHeroShowcase("pencil")}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all cursor-pointer ${
+                    heroShowcase === "pencil"
+                      ? "bg-white text-slate-950 shadow-xs border border-slate-200/80"
+                      : "text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  <span>✏️ Hand-Drawn Architecture Blueprint</span>
+                  <span className="text-[10px] px-1.5 py-0.2 rounded bg-orange-100 text-orange-800 font-mono">NEW</span>
+                </button>
+                <button
+                  onClick={() => setHeroShowcase("simulator")}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all cursor-pointer ${
+                    heroShowcase === "simulator"
+                      ? "bg-white text-slate-950 shadow-xs border border-slate-200/80"
+                      : "text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  <span>⚡ Interactive 3-Stage Simulator</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Display Selected Showcase */}
+            {heroShowcase === "pencil" ? (
+              <PencilArchitectureShowcase />
+            ) : (
+              <IdentityVaultSimulator />
+            )}
+          </div>
+
+        </div>
+      </section>
+
+      {/* ═══════════════════════════════════════════════════════════════════ */}
+      {/* 2. STATS & KEY METRICS RIBBON (1Password High-Trust Style)         */}
+      {/* ═══════════════════════════════════════════════════════════════════ */}
+      <section className="py-10 px-4 sm:px-6 lg:px-8 bg-slate-900 text-white border-y border-slate-800">
+        <div className="max-w-6xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
+          <div className="space-y-1">
+            <p className="text-3xl sm:text-4xl font-extrabold text-orange-400 font-mono">0.00%</p>
+            <p className="text-xs text-slate-400 font-medium uppercase tracking-wider">Officer PII Access</p>
+          </div>
+          <div className="space-y-1">
+            <p className="text-3xl sm:text-4xl font-extrabold text-emerald-400 font-mono">100%</p>
+            <p className="text-xs text-slate-400 font-medium uppercase tracking-wider">Retaliation-Proof</p>
+          </div>
+          <div className="space-y-1">
+            <p className="text-3xl sm:text-4xl font-extrabold text-white font-mono">14 Days</p>
+            <p className="text-xs text-slate-400 font-medium uppercase tracking-wider">Statutory Redressal SLA</p>
+          </div>
+          <div className="space-y-1">
+            <p className="text-3xl sm:text-4xl font-extrabold text-indigo-400 font-mono">256-Bit</p>
+            <p className="text-xs text-slate-400 font-medium uppercase tracking-wider">HMAC Cryptographic Sealing</p>
           </div>
         </div>
       </section>
 
       {/* ═══════════════════════════════════════════════════════════════════ */}
-      {/* 2. QUICK STATUS CHECKER                                           */}
+      {/* 3. THREE-STEP CRYPTOGRAPHIC PIPELINE                              */}
       {/* ═══════════════════════════════════════════════════════════════════ */}
-      <section className="py-8 px-4 sm:px-8 max-w-3xl mx-auto w-full -mt-8 relative z-20">
-        <QuickStatusWidget />
+      <section id="process" className="py-20 px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto w-full">
+        <div className="text-center mb-14 space-y-2">
+          <span className="text-xs font-bold uppercase tracking-widest text-orange-600 font-mono">
+            How The Privacy Layer Operates
+          </span>
+          <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-950 tracking-tight">
+            Verify the citizen. Protect the identity.
+          </h2>
+          <p className="text-slate-500 text-sm sm:text-base max-w-2xl mx-auto">
+            The Government needs to verify that you are a genuine citizen. The officer investigating your complaint does not need to know who you are.
+          </p>
+        </div>
+
+        <div className="grid md:grid-cols-3 gap-6">
+          {steps.map((s) => (
+            <div 
+              key={s.num} 
+              className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm hover:shadow-md transition-all flex flex-col justify-between space-y-4"
+            >
+              <div className="space-y-3">
+                <span className="inline-block text-xs font-mono font-bold px-2.5 py-1 rounded-md bg-orange-50 text-orange-700 border border-orange-200">
+                  STEP {s.num}
+                </span>
+                <h3 className="text-lg font-bold text-slate-950 leading-snug">{s.title}</h3>
+                <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">{s.desc}</p>
+              </div>
+              <div className="pt-3 border-t border-slate-100 flex items-center gap-1.5 text-xs font-semibold text-emerald-700">
+                <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                <span>{s.note}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Integrated Ministries Coverage Grid */}
+        <div className="mt-14 pt-10 border-t border-slate-200/80">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+            <div>
+              <h4 className="text-sm font-bold text-slate-900 uppercase tracking-wider font-mono">
+                Integrated Central Ministries &amp; State Departments
+              </h4>
+              <p className="text-xs text-slate-500 mt-0.5">
+                AI Drishti provides instant auto-routing across 100+ government jurisdictions.
+              </p>
+            </div>
+            <span className="text-[11px] font-semibold text-orange-600 bg-orange-50 border border-orange-200 px-2.5 py-1 rounded-full w-fit">
+              100% Coverage Enabled
+            </span>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+            {departments.map((dept) => (
+              <div 
+                key={dept.name}
+                className="p-3 rounded-xl bg-white border border-slate-200/80 hover:border-orange-300 hover:shadow-sm transition-all text-left space-y-1 group"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 group-hover:bg-orange-50 group-hover:text-orange-700 transition-colors">
+                    {dept.badge}
+                  </span>
+                </div>
+                <p className="text-xs font-bold text-slate-900 leading-snug pt-1">{dept.name}</p>
+                <p className="text-[10px] text-slate-500 leading-tight">{dept.cases}</p>
+              </div>
+            ))}
+          </div>
+        </div>
       </section>
 
       {/* ═══════════════════════════════════════════════════════════════════ */}
-      {/* 3. THREE STEPS                                                    */}
+      {/* 4. 1PASSWORD-STYLE BENTO GRID FEATURE SHOWCASE                     */}
       {/* ═══════════════════════════════════════════════════════════════════ */}
-      <section id="process" className="py-14 px-4 sm:px-8 max-w-5xl mx-auto w-full">
-        <div className="text-center mb-10 space-y-1.5">
-          <span className="text-[11px] font-bold uppercase tracking-widest text-[#EA580C]">How it works</span>
-          <h2 className="text-2xl sm:text-3xl font-black text-slate-950 tracking-tight">3 steps. 2 minutes. Done.</h2>
+      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-slate-50/70 border-y border-slate-200">
+        <div className="max-w-6xl mx-auto space-y-12">
+          <div className="text-center space-y-2 max-w-2xl mx-auto">
+            <span className="text-xs font-bold uppercase tracking-widest text-orange-600 font-mono">
+              Core Security Features
+            </span>
+            <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-950 tracking-tight">
+              Engineered for absolute trust and transparency
+            </h2>
+            <p className="text-slate-500 text-sm sm:text-base">
+              Every grievance is backed by tamper-proof evidence, AI auto-classification, and court-authorized disclosure protocols.
+            </p>
+          </div>
+
+          <BentoSecurityGrid />
+        </div>
+      </section>
+
+      {/* ═══════════════════════════════════════════════════════════════════ */}
+      {/* 5. PERSONA WALKTHROUGH (Citizen vs Officer vs Judiciary)           */}
+      {/* ═══════════════════════════════════════════════════════════════════ */}
+      <section className="py-20 px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto w-full">
+        <div className="text-center mb-10 space-y-2">
+          <span className="text-xs font-bold uppercase tracking-widest text-orange-600 font-mono">
+            Multi-Stakeholder Architecture
+          </span>
+          <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-950 tracking-tight">
+            Designed for every participant in the ecosystem
+          </h2>
         </div>
 
-        <div className="grid md:grid-cols-3 gap-5">
-          {steps.map((s) => (
-            <div key={s.num} className="p-5 rounded-2xl bg-slate-50/70 border border-slate-100 text-left space-y-2.5 hover:shadow-sm transition-shadow">
-              <span className="text-xs font-mono font-bold text-[#EA580C]">{s.num}</span>
-              <h3 className="text-sm font-bold text-slate-900">{s.title}</h3>
-              <p className="text-xs text-slate-500 leading-relaxed">{s.desc}</p>
-              <p className="text-[11px] font-semibold text-emerald-600 pt-1 border-t border-slate-100">{s.note}</p>
+        {/* Persona Tabs */}
+        <div className="flex justify-center mb-8">
+          <div className="inline-flex p-1 rounded-xl bg-slate-100 border border-slate-200 text-xs font-bold">
+            <button
+              onClick={() => setActivePersona("citizen")}
+              className={`px-4 py-2 rounded-lg transition-all cursor-pointer ${
+                activePersona === "citizen" 
+                  ? "bg-white text-slate-950 shadow-xs" 
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              For Everyday Citizens
+            </button>
+            <button
+              onClick={() => setActivePersona("officer")}
+              className={`px-4 py-2 rounded-lg transition-all cursor-pointer ${
+                activePersona === "officer" 
+                  ? "bg-white text-slate-950 shadow-xs" 
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              For Redressal Officers
+            </button>
+            <button
+              onClick={() => setActivePersona("judiciary")}
+              className={`px-4 py-2 rounded-lg transition-all cursor-pointer ${
+                activePersona === "judiciary" 
+                  ? "bg-white text-slate-950 shadow-xs" 
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              For Judicial Authority
+            </button>
+          </div>
+        </div>
+
+        {/* Persona Card Content */}
+        <div className="p-8 rounded-2xl bg-white border border-slate-200 shadow-md">
+          {activePersona === "citizen" && (
+            <div className="grid md:grid-cols-2 gap-8 items-center">
+              <div className="space-y-4">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-orange-50 border border-orange-200 text-orange-700 text-xs font-bold">
+                  <UserCheck className="w-3.5 h-3.5" /> Citizen Protection Guarantee
+                </div>
+                <h3 className="text-2xl font-bold text-slate-950">Fearless Civic Participation</h3>
+                <p className="text-slate-600 text-sm leading-relaxed">
+                  Complain about local potholes, corrupt practices, hospital negligence, or ration delays without the fear of retaliatory visits or phone harassment.
+                </p>
+                <ul className="space-y-2 text-xs text-slate-700">
+                  <li className="flex items-center gap-2 font-medium">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600" /> One-click Aadhaar/Mobile OTP sign in
+                  </li>
+                  <li className="flex items-center gap-2 font-medium">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600" /> Live status tracking and instant SMS/Email updates
+                  </li>
+                  <li className="flex items-center gap-2 font-medium">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600" /> Right to Appeal if redressal is unsatisfactory
+                  </li>
+                </ul>
+                <div className="pt-2">
+                  <Button asChild className="bg-orange-600 hover:bg-orange-700 text-white font-bold text-xs px-6 py-5 rounded-lg shadow-sm">
+                    <a href={loginUrl}>Lodge Your Grievance Now</a>
+                  </Button>
+                </div>
+              </div>
+
+              <div className="p-5 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-3">
+                <p className="font-bold text-slate-900">What You See on Your Dashboard:</p>
+                <div className="p-3 bg-white rounded-lg border border-slate-200 space-y-1 font-mono text-[11px]">
+                  <div className="flex justify-between"><span>Case ID:</span><span className="font-bold text-orange-600">CPG-8F2K4</span></div>
+                  <div className="flex justify-between"><span>Status:</span><span className="text-emerald-600 font-bold">INVESTIGATION IN PROGRESS</span></div>
+                  <div className="flex justify-between"><span>Assigned Officer:</span><span className="text-slate-800">Executive Engineer (PWD-001)</span></div>
+                  <div className="flex justify-between"><span>Resolution SLA:</span><span className="text-slate-800">14 Days Remaining</span></div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activePersona === "officer" && (
+            <div className="grid md:grid-cols-2 gap-8 items-center">
+              <div className="space-y-4">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-700 text-xs font-bold">
+                  <Building2 className="w-3.5 h-3.5" /> Officer Workflow Portal
+                </div>
+                <h3 className="text-2xl font-bold text-slate-950">Pure Merit-Based Redressal</h3>
+                <p className="text-slate-600 text-sm leading-relaxed">
+                  Focus 100% on factual evidence and civic repairs. No political influence, no citizen bias, and zero spam complaints due to mandatory eKYC verification.
+                </p>
+                <ul className="space-y-2 text-xs text-slate-700">
+                  <li className="flex items-center gap-2 font-medium">
+                    <CheckCircle2 className="w-4 h-4 text-indigo-600" /> Pre-verified genuine citizen complaints (Zero spam bots)
+                  </li>
+                  <li className="flex items-center gap-2 font-medium">
+                    <CheckCircle2 className="w-4 h-4 text-indigo-600" /> Integrated GIS location and photo evidence viewer
+                  </li>
+                  <li className="flex items-center gap-2 font-medium">
+                    <CheckCircle2 className="w-4 h-4 text-indigo-600" /> Masked clarification thread for quick follow-ups
+                  </li>
+                </ul>
+                <div className="pt-2">
+                  <Button asChild variant="outline" className="text-slate-800 border-slate-300 font-bold text-xs px-6 py-5 rounded-lg">
+                    <Link href="/officer/login">Access Officer Portal</Link>
+                  </Button>
+                </div>
+              </div>
+
+              <div className="p-5 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-3">
+                <p className="font-bold text-slate-900">What The Officer Sees:</p>
+                <div className="p-3 bg-white rounded-lg border border-slate-200 space-y-1 font-mono text-[11px]">
+                  <div className="flex justify-between"><span>Case ID:</span><span className="font-bold text-indigo-600">CPG-8F2K4</span></div>
+                  <div className="flex justify-between"><span>Citizen Name:</span><span className="text-slate-400 font-bold">[SEALED BY CIVID]</span></div>
+                  <div className="flex justify-between"><span>Citizen Phone:</span><span className="text-slate-400 font-bold">[REDACTED]</span></div>
+                  <div className="flex justify-between"><span>Evidence:</span><span className="text-emerald-600 font-bold">2 Photos Attached (GPS Verified)</span></div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activePersona === "judiciary" && (
+            <div className="grid md:grid-cols-2 gap-8 items-center">
+              <div className="space-y-4">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-100 border border-slate-300 text-slate-800 text-xs font-bold">
+                  <Scale className="w-3.5 h-3.5" /> Judicial Court Authority
+                </div>
+                <h3 className="text-2xl font-bold text-slate-950">Auditable Legal Disclosure</h3>
+                <p className="text-slate-600 text-sm leading-relaxed">
+                  In extreme cases involving verified court warrants (e.g. criminal fraud or national security), the Disclosure Authority can unmask the identity map with full cryptographic audit logging.
+                </p>
+                <ul className="space-y-2 text-xs text-slate-700">
+                  <li className="flex items-center gap-2 font-medium">
+                    <CheckCircle2 className="w-4 h-4 text-slate-900" /> Strict court order verification before unmasking
+                  </li>
+                  <li className="flex items-center gap-2 font-medium">
+                    <CheckCircle2 className="w-4 h-4 text-slate-900" /> Immutable, append-only cryptographic audit logs
+                  </li>
+                  <li className="flex items-center gap-2 font-medium">
+                    <CheckCircle2 className="w-4 h-4 text-slate-900" /> Dual-key authorization protocol
+                  </li>
+                </ul>
+                <div className="pt-2">
+                  <Button asChild variant="outline" className="text-slate-800 border-slate-300 font-bold text-xs px-6 py-5 rounded-lg">
+                    <Link href="/disclosure">Disclosure Authority Console</Link>
+                  </Button>
+                </div>
+              </div>
+
+              <div className="p-5 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-3">
+                <p className="font-bold text-slate-900">Judicial Verification Record:</p>
+                <div className="p-3 bg-white rounded-lg border border-slate-200 space-y-1 font-mono text-[11px]">
+                  <div className="flex justify-between"><span>Court Ref:</span><span className="font-bold text-slate-900">HC-DEL-2026-CR-8921</span></div>
+                  <div className="flex justify-between"><span>Audit Hash:</span><span className="text-slate-600">e82b...914c (Recorded)</span></div>
+                  <div className="flex justify-between"><span>Authorized By:</span><span className="text-emerald-700 font-bold">Judicial Registrar</span></div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* ═══════════════════════════════════════════════════════════════════ */}
+      {/* 6. INSTANT STATUS LOOKUP WIDGET SECTION                            */}
+      {/* ═══════════════════════════════════════════════════════════════════ */}
+      <section className="py-16 px-4 sm:px-6 lg:px-8 bg-slate-50/70 border-y border-slate-200">
+        <div className="max-w-3xl mx-auto space-y-6">
+          <div className="text-center space-y-1.5">
+            <span className="text-xs font-bold uppercase tracking-widest text-orange-600 font-mono">
+              Public Tracker
+            </span>
+            <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-950 tracking-tight">
+              Track any existing grievance instantly
+            </h2>
+            <p className="text-xs sm:text-sm text-slate-500">
+              Enter your Registration Case ID and grievance password to check live officer remarks and resolution timeline.
+            </p>
+          </div>
+
+          <QuickStatusWidget />
+        </div>
+      </section>
+
+      {/* ═══════════════════════════════════════════════════════════════════ */}
+      {/* 7. FREQUENTLY ASKED QUESTIONS (Accordion)                         */}
+      {/* ═══════════════════════════════════════════════════════════════════ */}
+      <section className="py-20 px-4 sm:px-6 lg:px-8 max-w-4xl mx-auto w-full">
+        <div className="text-center mb-12 space-y-2">
+          <span className="text-xs font-bold uppercase tracking-widest text-orange-600 font-mono">
+            Frequently Asked Questions
+          </span>
+          <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-950 tracking-tight">
+            Clear answers on privacy and governance
+          </h2>
+        </div>
+
+        <div className="space-y-3">
+          {faqs.map((faq, i) => (
+            <div key={i} className="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-2xs">
+              <button
+                onClick={() => setOpenFaq(openFaq === i ? null : i)}
+                className="w-full px-6 py-4 flex items-center justify-between text-sm font-bold text-slate-900 text-left hover:bg-slate-50 transition-colors cursor-pointer"
+              >
+                <span>{faq.q}</span>
+                {openFaq === i ? (
+                  <ChevronUp className="w-4 h-4 text-orange-600 shrink-0" />
+                ) : (
+                  <ChevronDown className="w-4 h-4 text-slate-400 shrink-0" />
+                )}
+              </button>
+              {openFaq === i && (
+                <div className="px-6 pb-5 text-xs sm:text-sm text-slate-600 leading-relaxed border-t border-slate-100 pt-3.5 bg-slate-50/50">
+                  {faq.a}
+                </div>
+              )}
             </div>
           ))}
         </div>
       </section>
 
       {/* ═══════════════════════════════════════════════════════════════════ */}
-      {/* 4. CATEGORIES — compact pills                                     */}
-      {/* ═══════════════════════════════════════════════════════════════════ */}
-      <section className="py-12 px-4 sm:px-8 bg-slate-50/50 border-y border-slate-100">
-        <div className="max-w-5xl mx-auto space-y-8">
-          <div className="text-center space-y-1.5">
-            <span className="text-[11px] font-bold uppercase tracking-widest text-[#EA580C]">Coverage</span>
-            <h2 className="text-2xl sm:text-3xl font-black text-slate-950 tracking-tight">What can you complain about?</h2>
-            <p className="text-xs text-slate-500">100+ Central Ministries, Departments, and State Governments.</p>
-          </div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-            {categories.map((c) => (
-              <div key={c.name} className={`flex items-center gap-3 p-3.5 rounded-xl bg-white border border-slate-100 border-l-[3px] ${c.color} shadow-2xs`}>
-                <div>
-                  <p className="text-sm font-bold text-slate-900 leading-tight">{c.name}</p>
-                  <p className="text-[10px] text-slate-400 font-medium mt-0.5">{c.dept}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ═══════════════════════════════════════════════════════════════════ */}
-      {/* 5. WHY PRIVACY — clean before/after comparison                    */}
-      {/* ═══════════════════════════════════════════════════════════════════ */}
-      <section id="privacy" className="py-14 px-4 sm:px-8 max-w-5xl mx-auto w-full">
-        <div className="text-center mb-10 space-y-1.5">
-          <span className="text-[11px] font-bold uppercase tracking-widest text-[#EA580C]">Your protection</span>
-          <h2 className="text-2xl sm:text-3xl font-black text-slate-950 tracking-tight">Why we hide your identity</h2>
-          <p className="text-sm text-slate-500 max-w-lg mx-auto">Citizens hesitate when officers can see their name. We changed that.</p>
-        </div>
-
-        <div className="grid md:grid-cols-2 gap-5">
-          {/* Traditional */}
-          <div className="p-6 rounded-2xl border border-red-100 bg-red-50/30 space-y-4 text-left">
-            <div className="flex items-center gap-2">
-              <Eye className="w-4 h-4 text-red-500" />
-              <h3 className="text-sm font-bold text-red-800">Traditional System</h3>
-            </div>
-            <ul className="space-y-2.5 text-xs text-red-700/80">
-              <li className="flex items-start gap-2"><span className="text-red-400 shrink-0 mt-0.5">&times;</span> Officer sees your real name &amp; phone</li>
-              <li className="flex items-start gap-2"><span className="text-red-400 shrink-0 mt-0.5">&times;</span> Risk of pressure to withdraw complaint</li>
-              <li className="flex items-start gap-2"><span className="text-red-400 shrink-0 mt-0.5">&times;</span> Complaint judged by who you are</li>
-            </ul>
-          </div>
-
-          {/* Privacy-Protected */}
-          <div className="p-6 rounded-2xl border border-emerald-100 bg-emerald-50/30 space-y-4 text-left">
-            <div className="flex items-center gap-2">
-              <EyeOff className="w-4 h-4 text-emerald-600" />
-              <h3 className="text-sm font-bold text-emerald-800">Privacy-Protected (This Portal)</h3>
-            </div>
-            <ul className="space-y-2.5 text-xs text-emerald-700/80">
-              <li className="flex items-start gap-2"><span className="text-emerald-500 shrink-0 mt-0.5">&#10003;</span> Officer sees only anonymous Case ID</li>
-              <li className="flex items-start gap-2"><span className="text-emerald-500 shrink-0 mt-0.5">&#10003;</span> Zero retaliation — identity sealed by SSO</li>
-              <li className="flex items-start gap-2"><span className="text-emerald-500 shrink-0 mt-0.5">&#10003;</span> Complaint judged purely on evidence</li>
-            </ul>
-          </div>
-        </div>
-
-        <p className="text-center text-[11px] text-slate-400 mt-5">
-          Identity can only be revealed through a Court-authorized judicial warrant — every reveal is permanently logged.
-        </p>
-      </section>
-
-      {/* ═══════════════════════════════════════════════════════════════════ */}
-      {/* 6. FAQ — data-driven, compact                                     */}
-      {/* ═══════════════════════════════════════════════════════════════════ */}
-      <section className="py-14 px-4 sm:px-8 bg-slate-50/50 border-y border-slate-100">
-        <div className="max-w-3xl mx-auto">
-          <div className="text-center mb-8 space-y-1.5">
-            <span className="text-[11px] font-bold uppercase tracking-widest text-[#EA580C]">Help</span>
-            <h2 className="text-2xl sm:text-3xl font-black text-slate-950 tracking-tight">Frequently Asked Questions</h2>
-          </div>
-
-          <div className="space-y-2.5">
-            {faqs.map((faq, i) => (
-              <div key={i} className="border border-slate-200 rounded-xl overflow-hidden bg-white">
-                <button
-                  onClick={() => setOpenFaq(openFaq === i ? null : i)}
-                  className="w-full px-5 py-4 flex items-center justify-between text-sm font-bold text-slate-900 text-left hover:bg-slate-50 transition-colors"
-                >
-                  <span>{faq.q}</span>
-                  {openFaq === i
-                    ? <ChevronUp className="w-4 h-4 text-slate-400 shrink-0" />
-                    : <ChevronDown className="w-4 h-4 text-slate-400 shrink-0" />}
-                </button>
-                {openFaq === i && (
-                  <div className="px-5 pb-4 text-xs text-slate-600 leading-relaxed border-t border-slate-100 pt-3">
-                    {faq.a}
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ═══════════════════════════════════════════════════════════════════ */}
-      {/* 7. FOOTER — merged helpline + portals + NIC                       */}
+      {/* 8. FOOTER (High-Trust GovTech & NIC Branding)                     */}
       {/* ═══════════════════════════════════════════════════════════════════ */}
       <footer className="bg-slate-950 text-slate-400 text-xs">
-        <div className="max-w-5xl mx-auto px-4 sm:px-8 py-10">
-          {/* Top row: brand + helpline */}
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+          
+          {/* Top Brand & Helpline Row */}
           <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 pb-8 border-b border-slate-800">
-            <div className="flex items-center gap-3">
-              <AshokaEmblem size={32} />
+            <div className="flex items-center gap-3.5">
+              <AshokaEmblem size={36} />
               <div>
-                <p className="font-extrabold text-white text-sm">CPGRAMS</p>
-                <p className="text-[11px] text-slate-500">Centralised Public Grievance Redress and Monitoring System</p>
+                <p className="font-extrabold text-white text-base tracking-tight">CPGRAMS &bull; CivID Privacy Layer</p>
+                <p className="text-[11px] text-slate-400">
+                  Department of Administrative Reforms and Public Grievances (DARPG), Government of India
+                </p>
               </div>
             </div>
-            <div className="flex items-center gap-2 text-slate-300">
-              <Phone className="w-3.5 h-3.5 text-[#F6821F]" />
-              <span className="font-bold">1800-11-4000</span>
-              <span className="text-slate-500">— Free 24&times;7 Helpline</span>
+
+            <div className="flex items-center gap-3 px-4 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-slate-200">
+              <Phone className="w-4 h-4 text-orange-500" />
+              <div>
+                <span className="font-bold text-white text-sm">1800-11-4000</span>
+                <span className="text-[10px] text-slate-400 block">Toll-Free National Grievance Helpline (24x7)</span>
+              </div>
             </div>
           </div>
 
-          {/* Links grid */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 pt-8 pb-8">
-            <div className="space-y-2">
-              <h5 className="font-bold text-white uppercase text-[10px] tracking-wider">Citizen</h5>
-              <ul className="space-y-1.5">
-                <li><a href={loginUrl} className="hover:text-white transition-colors">Lodge Grievance</a></li>
-                <li><Link href="/status" className="hover:text-white transition-colors">Track Status</Link></li>
-                <li><Link href="/dashboard" className="hover:text-white transition-colors">My Dashboard</Link></li>
+          {/* Nav Grid */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-8 pt-8 pb-8">
+            <div className="space-y-2.5">
+              <h5 className="font-bold text-white uppercase text-[11px] tracking-wider font-mono">Citizen Access</h5>
+              <ul className="space-y-2">
+                <li><a href={loginUrl} className="hover:text-white transition-colors">Lodge Grievance (SSO)</a></li>
+                <li><Link href="/status" className="hover:text-white transition-colors">Track Case Status</Link></li>
+                <li><Link href="/dashboard" className="hover:text-white transition-colors">My Grievances Dashboard</Link></li>
               </ul>
             </div>
-            <div className="space-y-2">
-              <h5 className="font-bold text-white uppercase text-[10px] tracking-wider">Portals</h5>
-              <ul className="space-y-1.5">
-                <li><Link href="/officer/login" className="hover:text-white transition-colors">Officer Portal</Link></li>
-                <li><Link href="/disclosure" className="hover:text-white transition-colors">Disclosure Authority</Link></li>
+
+            <div className="space-y-2.5">
+              <h5 className="font-bold text-white uppercase text-[11px] tracking-wider font-mono">Official Portals</h5>
+              <ul className="space-y-2">
+                <li><Link href="/officer/login" className="hover:text-white transition-colors">Nodal Officer Portal</Link></li>
+                <li><Link href="/disclosure" className="hover:text-white transition-colors">Disclosure Authority Console</Link></li>
               </ul>
             </div>
-            <div className="space-y-2">
-              <h5 className="font-bold text-white uppercase text-[10px] tracking-wider">Government</h5>
-              <ul className="space-y-1.5">
-                <li><a href="https://dpg.gov.in" target="_blank" rel="noreferrer" className="hover:text-white transition-colors">Directorate of PG</a></li>
-                <li><a href="https://darpg.gov.in" target="_blank" rel="noreferrer" className="hover:text-white transition-colors">DARPG</a></li>
-                <li><a href="https://rtionline.gov.in" target="_blank" rel="noreferrer" className="hover:text-white transition-colors">RTI Online</a></li>
+
+            <div className="space-y-2.5">
+              <h5 className="font-bold text-white uppercase text-[11px] tracking-wider font-mono">Government Links</h5>
+              <ul className="space-y-2">
+                <li><a href="https://dpg.gov.in" target="_blank" rel="noreferrer" className="hover:text-white transition-colors">Directorate of Public Grievances</a></li>
+                <li><a href="https://darpg.gov.in" target="_blank" rel="noreferrer" className="hover:text-white transition-colors">DARPG Official Portal</a></li>
+                <li><a href="https://rtionline.gov.in" target="_blank" rel="noreferrer" className="hover:text-white transition-colors">RTI Online Portal</a></li>
               </ul>
             </div>
-            <div className="space-y-2">
-              <h5 className="font-bold text-white uppercase text-[10px] tracking-wider">On this page</h5>
-              <ul className="space-y-1.5">
-                <li><a href="#process" className="hover:text-white transition-colors">How It Works</a></li>
-                <li><a href="#privacy" className="hover:text-white transition-colors">Why Privacy</a></li>
+
+            <div className="space-y-2.5">
+              <h5 className="font-bold text-white uppercase text-[11px] tracking-wider font-mono">Security &amp; Standards</h5>
+              <ul className="space-y-2">
+                <li><span className="text-slate-500">RFC-7519 OIDC Pairwise</span></li>
+                <li><span className="text-slate-500">HMAC-SHA256 Sealing</span></li>
+                <li><span className="text-slate-500">ISO 27001 Certified Architecture</span></li>
               </ul>
             </div>
           </div>
 
-          {/* Bottom attribution */}
-          <div className="pt-6 border-t border-slate-800 flex flex-col md:flex-row items-center justify-between gap-3 text-[10px] text-slate-500">
+          {/* Bottom Attribution */}
+          <div className="pt-6 border-t border-slate-800 flex flex-col md:flex-row items-center justify-between gap-3 text-[11px] text-slate-500">
             <p>
-              Designed &amp; hosted by <strong>National Informatics Centre (NIC)</strong>, MeitY. Content owned by <strong>DARPG</strong>, Government of India.
+              Designed &amp; hosted by <strong>National Informatics Centre (NIC)</strong>, MeitY.
             </p>
             <p>
-              Powered by <strong className="text-slate-400">CivID Privacy Layer</strong> &bull; Built for Build What Moves India
+              Built for <strong>Build What Moves India</strong> &bull; Powered by CivID Zero-Knowledge Privacy Architecture
             </p>
           </div>
+
         </div>
 
-        {/* Tricolor */}
-        <div className="h-1 w-full flex">
+        {/* Indian Tricolor Bar */}
+        <div className="h-1.5 w-full flex">
           <div className="flex-1 bg-[#FF9933]" />
           <div className="flex-1 bg-white" />
           <div className="flex-1 bg-[#138808]" />
         </div>
       </footer>
+
     </div>
   );
 }

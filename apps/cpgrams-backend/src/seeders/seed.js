@@ -76,8 +76,8 @@ const { hashPassword } = require('../services/officerAuth');
 const defaultOfficerPassword = hashPassword('Officer@123');
 
 const officers = [
-  { officerId: 'PWD-001', name: 'Rajesh Kumar', department: 'PWD', level: 1, passwordHash: defaultOfficerPassword },
-  { officerId: 'PWD-002', name: 'Sunita Devi', department: 'PWD', level: 2, passwordHash: defaultOfficerPassword },
+  { officerId: 'PWD-001', name: 'Rajesh Kumar', department: 'PWD', level: 1, expertise: ['roads', 'water', 'infrastructure'], jurisdictions: ['indore', 'ward 12'], passwordHash: defaultOfficerPassword },
+  { officerId: 'PWD-002', name: 'Sunita Devi', department: 'PWD', level: 2, expertise: ['roads', 'bridges', 'contracts'], jurisdictions: ['indore', 'bhopal'], passwordHash: defaultOfficerPassword },
   { officerId: 'HEALTH-001', name: 'Dr. Ananya Roy', department: 'Health', level: 1, passwordHash: defaultOfficerPassword },
   { officerId: 'HEALTH-002', name: 'Dr. Vikram Singh', department: 'Health', level: 3, passwordHash: defaultOfficerPassword },
   { officerId: 'POLICE-001', name: 'Inspector Meera Joshi', department: 'Police', level: 2, passwordHash: defaultOfficerPassword },

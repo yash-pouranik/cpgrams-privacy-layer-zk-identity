@@ -15,6 +15,7 @@ const Case = require('../src/models/Case');
 const Officer = require('../src/models/Officer');
 const AiCaseAnalysis = require('../src/models/AiCaseAnalysis');
 const AiAgentRun = require('../src/models/AiAgentRun');
+const AuditLog = require('../src/models/AuditLog');
 
 // This test exercises orchestration and persistence, not Redis connectivity.
 // Stub the queue module before loading the worker to avoid opening a Redis handle.
@@ -27,8 +28,11 @@ test('AI worker persists triage and assignment output for a queued grievance', a
     caseFindOne: Case.findOne,
     caseUpdateOne: Case.updateOne,
     officerFindOne: Officer.findOne,
+    officerFind: Officer.find,
+    officerUpdateOne: Officer.updateOne,
     analysisUpdate: AiCaseAnalysis.findOneAndUpdate,
     agentRunCreate: AiAgentRun.create,
+    auditLogCreate: AuditLog.create,
   };
   const analysisUpdates = [];
   const agentRuns = [];
@@ -59,6 +63,15 @@ test('AI worker persists triage and assignment output for a queued grievance', a
       toObject: () => ({ officerId: 'PWD-001', name: 'Rajesh Kumar', department: 'PWD', currentCaseCount: 2 }),
     }),
   });
+  Officer.find = () => ({
+    select: () => ({
+      lean: async () => [
+        { officerId: 'PWD-001', name: 'Rajesh Kumar', department: 'PWD', level: 2, currentCaseCount: 2, expertise: ['roads'], jurisdictions: ['indore'], averageResolutionDays: 11 },
+        { officerId: 'PWD-002', name: 'Meena Rao', department: 'PWD', level: 1, currentCaseCount: 6, expertise: ['bridges'], jurisdictions: ['bhopal'], averageResolutionDays: 20 },
+      ],
+    }),
+  });
+  Officer.updateOne = async () => ({ acknowledged: true, modifiedCount: 0 });
   AiCaseAnalysis.findOneAndUpdate = async (filter, update) => {
     analysisUpdates.push({ filter, update });
     return {};
@@ -67,6 +80,7 @@ test('AI worker persists triage and assignment output for a queued grievance', a
     agentRuns.push(run);
     return run;
   };
+  AuditLog.create = async (entry) => entry;
 
   try {
     await processGrievanceIntelligence({ caseId: 'CPG-WORKER-01' });
@@ -78,18 +92,25 @@ test('AI worker persists triage and assignment output for a queued grievance', a
     assert.ok(assignmentUpdate, 'assignment result should be persisted');
     assert.equal(assignmentUpdate.update.$set.assignment.resolvedDepartment, 'PWD');
     assert.equal(assignmentUpdate.update.$set.assignment.usedAiRecommendation, true);
+    assert.equal(assignmentUpdate.update.$set.assignment.selectionMethod, 'bounded-ai-shortlist');
+    assert.equal(assignmentUpdate.update.$set.assignment.candidateShortlist.length, 2);
     const qualityUpdate = analysisUpdates.find((entry) => entry.update.$set?.quality);
     assert.ok(qualityUpdate, 'semantic quality result should be persisted');
     assert.ok(qualityUpdate.update.$set.quality.qualityScore >= 0);
     assert.equal(caseUpdates.length, 0, 'existing HTTP assignment must not be overwritten');
     assert.ok(agentRuns.some((run) => run.agent === 'triage' && run.status === 'completed'));
     assert.ok(agentRuns.some((run) => run.agent === 'assignment' && run.status === 'completed'));
+    assert.ok(agentRuns.some((run) => run.agent === 'brief' && run.status === 'completed'));
     assert.equal(analysisUpdates.at(-1).update.$set.status, 'completed');
+    assert.match(analysisUpdates.at(-1).update.$set.caseBrief, /Case Intelligence Brief/);
   } finally {
     Case.findOne = originals.caseFindOne;
     Case.updateOne = originals.caseUpdateOne;
     Officer.findOne = originals.officerFindOne;
+    Officer.find = originals.officerFind;
+    Officer.updateOne = originals.officerUpdateOne;
     AiCaseAnalysis.findOneAndUpdate = originals.analysisUpdate;
     AiAgentRun.create = originals.agentRunCreate;
+    AuditLog.create = originals.auditLogCreate;
   }
 });

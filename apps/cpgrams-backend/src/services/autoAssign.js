@@ -151,6 +151,139 @@ async function selectOfficerByDepartment(department, { reserve = true } = {}) {
   return officer;
 }
 
+function scoreOfficer(officer, { department, category = '', location = '', priorityScore = 0 } = {}) {
+  const wanted = String(category).toLowerCase();
+  const place = String(location).toLowerCase();
+  const expertise = (officer.expertise || []).map((value) => String(value).toLowerCase());
+  const jurisdictions = (officer.jurisdictions || []).map((value) => String(value).toLowerCase());
+  const departmentMatch = String(officer.department).toLowerCase() === String(department).toLowerCase();
+  const expertiseMatch = Boolean(wanted) && expertise.some((value) => wanted.includes(value) || value.includes(wanted));
+  const jurisdictionMatch = Boolean(place) && jurisdictions.some((value) => place.includes(value) || value.includes(place));
+  const workloadScore = Math.max(0, 30 - Math.min(30, Number(officer.currentCaseCount || 0) * 3));
+  const slaRisk = Math.max(0, Math.min(1, (Number(officer.averageResolutionDays || 14) - 14) / 14));
+  const slaScore = Math.max(0, 10 - (slaRisk * 10));
+  const urgencyBonus = Number(priorityScore) >= 80 && Number(officer.level) >= 2 ? 5 : 0;
+  return (departmentMatch ? 50 : 0) + (expertiseMatch ? 20 : 0) + (jurisdictionMatch ? 15 : 0) + workloadScore + slaScore + urgencyBonus;
+}
+
+function describeOfficerMatch(officer, context = {}) {
+  const wanted = String(context.category || '').toLowerCase();
+  const place = String(context.location || '').toLowerCase();
+  const expertise = (officer.expertise || []).map((value) => String(value).toLowerCase());
+  const jurisdictions = (officer.jurisdictions || []).map((value) => String(value).toLowerCase());
+  const departmentMatch = String(officer.department || '').toLowerCase() === String(context.department || '').toLowerCase();
+  const expertiseMatch = Boolean(wanted) && expertise.some((value) => wanted.includes(value) || value.includes(wanted));
+  const jurisdictionMatch = Boolean(place) && jurisdictions.some((value) => place.includes(value) || value.includes(place));
+  const workloadScore = Math.max(0, 30 - Math.min(30, Number(officer.currentCaseCount || 0) * 3));
+
+  return {
+    departmentMatch,
+    expertiseMatch,
+    jurisdictionMatch,
+    workloadScore: Math.round(workloadScore),
+    prioritySupport: Number(context.priorityScore || 0) >= 80 && Number(officer.level || 0) >= 2,
+  };
+}
+
+function officerSlaRisk(officer) {
+  return Math.max(0, Math.min(1, (Number(officer?.averageResolutionDays || 14) - 14) / 14));
+}
+
+function normalizeOfficerCandidate(officer, score, context = {}) {
+  if (!officer) return null;
+  return {
+    officerId: officer.officerId,
+    name: officer.name,
+    department: officer.department,
+    level: officer.level,
+    currentCaseCount: Number(officer.currentCaseCount || 0),
+    expertise: Array.isArray(officer.expertise) ? officer.expertise : [],
+    jurisdictions: Array.isArray(officer.jurisdictions) ? officer.jurisdictions : [],
+    averageResolutionDays: Number(officer.averageResolutionDays || 14),
+    assignmentScore: Math.round(Number(score || 0)),
+    slaRisk: officerSlaRisk(officer),
+    resolvedDepartment: context.department || officer.department || 'General Administration',
+    matchingFactors: describeOfficerMatch(officer, context),
+  };
+}
+
+function rankOfficerCandidates(officers = [], context = {}) {
+  return officers
+    .map((officer) => ({ officer, score: scoreOfficer(officer, context) }))
+    .sort((a, b) => b.score - a.score || Number(a.officer.currentCaseCount || 0) - Number(b.officer.currentCaseCount || 0))
+    .map(({ officer, score }) => normalizeOfficerCandidate(officer, score, context));
+}
+
+async function buildAssignmentCandidates(context = {}, { limit = 5 } = {}) {
+  const targetDepartment = context.department || 'General Administration';
+  const queryAvailable = (filter) => Officer.find(filter).select('-passwordHash').lean();
+  let officers = await queryAvailable({
+    isAvailable: true,
+    department: { $regex: new RegExp(`^${targetDepartment}$`, 'i') },
+  });
+
+  if (!officers.length) {
+    officers = await queryAvailable({ isAvailable: true });
+  }
+
+  return rankOfficerCandidates(officers, context).slice(0, limit);
+}
+
+async function selectOfficerIntelligently(context = {}, { reserve = false } = {}) {
+  const ranked = await buildAssignmentCandidates(context, { limit: 1 });
+  if (!ranked.length) return null;
+  const selected = ranked[0];
+  if (reserve) await Officer.updateOne({ officerId: selected.officerId }, { $inc: { currentCaseCount: 1 } });
+  return { ...selected, usedAiRecommendation: false };
+}
+
+function validateAssignmentRecommendation(recommendation, candidatesOrCandidate, context = {}) {
+  const candidates = Array.isArray(candidatesOrCandidate)
+    ? candidatesOrCandidate
+    : (candidatesOrCandidate ? [candidatesOrCandidate] : []);
+  const expectedDepartment = String(context.department || candidates[0]?.resolvedDepartment || 'General Administration');
+  const requestedOfficerId = recommendation?.recommendedOfficerId || null;
+  const requestedDepartment = String(recommendation?.recommendedDepartment || expectedDepartment);
+  const requestedCandidate = candidates.find((candidate) => candidate.officerId === requestedOfficerId);
+  const departmentValid = requestedDepartment.toLowerCase() === expectedDepartment.toLowerCase();
+  const hasExistingAssignment = Boolean(context.currentOfficerAssignment);
+  const currentOfficerKnown = hasExistingAssignment
+    ? candidates.find((candidate) => candidate.officerId === context.currentOfficerAssignment)
+    : null;
+  const aiAccepted = Boolean(requestedCandidate && departmentValid);
+  const selected = currentOfficerKnown || (aiAccepted ? requestedCandidate : candidates[0]) || null;
+  const source = hasExistingAssignment
+    ? 'PROTECTED_EXISTING_ASSIGNMENT'
+    : aiAccepted
+      ? 'AI_RECOMMENDATION'
+      : 'DETERMINISTIC_FALLBACK';
+  const modelReasons = Array.isArray(recommendation?.reason) && recommendation.reason.length
+    ? recommendation.reason.slice(0, 4)
+    : ['Ranked officer from eligible shortlist.'];
+  const protectionReason = hasExistingAssignment && !currentOfficerKnown
+    ? [`Existing case assignment ${context.currentOfficerAssignment} is protected; AI recommendation is not applied automatically.`]
+    : [];
+
+  return {
+    ...selected,
+    recommendedDepartment: expectedDepartment,
+    recommendedOfficerId: aiAccepted ? requestedCandidate.officerId : selected?.officerId || null,
+    appliedOfficerId: hasExistingAssignment ? context.currentOfficerAssignment : selected?.officerId || null,
+    reason: [...modelReasons, ...protectionReason],
+    confidence: aiAccepted ? Math.max(0, Math.min(1, Number(recommendation?.confidence || 0))) : 0,
+    currentOfficerValid: Boolean(currentOfficerKnown || (hasExistingAssignment && requestedOfficerId === context.currentOfficerAssignment)),
+    aiRecommendationAccepted: aiAccepted,
+    usedAiRecommendation: aiAccepted,
+    assignmentApplied: Boolean(!hasExistingAssignment && selected?.officerId),
+    recommendationSource: source,
+    candidateCount: candidates.length,
+    candidateShortlist: candidates,
+    modelRecommendedOfficerId: requestedOfficerId,
+    modelRecommendedDepartment: requestedDepartment,
+    validator: 'deterministic-officer-policy-v1',
+  };
+}
+
 /**
  * Auto-assign a case to the least-loaded available officer
  * in the relevant department.
@@ -198,4 +331,9 @@ module.exports = {
   getDepartment,
   resolveDepartment,
   CATEGORY_DEPARTMENT_MAP,
+  scoreOfficer,
+  rankOfficerCandidates,
+  buildAssignmentCandidates,
+  selectOfficerIntelligently,
+  validateAssignmentRecommendation,
 };

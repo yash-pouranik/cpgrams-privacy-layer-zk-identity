@@ -115,6 +115,16 @@ Core grievance redressal system. Operates pseudonymous case management, masked c
 
 ---
 
+### Drishti AI Analysis
+*Background grievance intelligence outputs shown to citizens and assigned officers.*
+
+- **`GET /ai-analysis/:caseId`** (Citizen or assigned Officer)
+  - **Headers:** `Authorization: Bearer <citizen_token>` or `Authorization: Bearer <officer_token>`
+  - **Description:** Returns pipeline status plus Agent 1 triage, Agent 3 quality, Agent 5 evidence summary, Phase 6 assignment intelligence, and the generated `caseBrief`.
+  - **Assignment fields:** `recommendedOfficerId`, `recommendedDepartment`, `appliedOfficerId`, `assignmentApplied`, `selectionMethod`, `confidence`, `assignmentScore`, `slaRisk`, `currentCaseCount`, `averageResolutionDays`, `matchingFactors`, `candidateShortlist`, and validator metadata. `candidateShortlist` is the bounded officer list supplied to Drishti-Route; the deterministic validator rejects invented officer IDs/departments.
+
+---
+
 ### 📁 Document Management & Uploads
 *Supports PDF, PNG, JPG, JPEG (Max 10MB per file).*
 
@@ -193,6 +203,9 @@ Core grievance redressal system. Operates pseudonymous case management, masked c
 - **`PATCH /officer/case/:caseId/status`**
   - **Body:** `{ "status": "under_process" | "forwarded" | "disposed", "atrRemarks": "..." }`
   - **Description:** Updates case status. When set to `disposed`, saves formal **Action Taken Report (ATR)** remarks.
+- **`PATCH /officer/case/:caseId/evidence/:evidenceId`**
+  - **Body:** `{ "status": "ACCEPTED" | "REJECTED" }`
+  - **Description:** Assigned officer reviews one `REVIEW_PENDING` Agent 5 source. The decision creates an `evidence_reviewed` audit event; already reviewed sources return `409`.
 - **`POST /officer/case/:caseId/appeal-decision`**
   - **Body:** `{ "decision": "upheld" | "fresh_action_ordered", "appealOrderRemarks": "..." }`
   - **Description:** **Stage 10 Appellate Review**. Nodal Appellate Authority issues final order. If `fresh_action_ordered`, re-opens case to `under_process` for field correction.

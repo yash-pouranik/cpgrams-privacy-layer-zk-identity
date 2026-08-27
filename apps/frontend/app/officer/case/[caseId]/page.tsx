@@ -413,7 +413,7 @@ export default function OfficerCaseDetail() {
 
       {/* AI triage and semantic quality context for the assigned officer. */}
       <div id="case-intelligence" className={`${activeTab === "intelligence" ? "" : "hidden"} mb-8 scroll-mt-24`}>
-        <AiIntelligencePanel caseId={grievance.caseId} token={officerToken} />
+        <AiIntelligencePanel caseId={grievance.caseId} token={officerToken} reviewable />
       </div>
 
       {/* Appellate Authority Review Card (Stage 10) */}
