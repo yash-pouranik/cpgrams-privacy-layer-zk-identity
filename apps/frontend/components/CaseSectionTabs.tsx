@@ -4,8 +4,8 @@ import { FileSearch, MessageSquare, ScanSearch, SlidersHorizontal, LayoutDashboa
 
 export type CaseTab = "overview" | "intelligence" | "evidence" | "chat" | "actions";
 const sections: { id: CaseTab; label: string; icon: typeof LayoutDashboard }[] = [
-  { id: "overview", label: "Overview", icon: LayoutDashboard },
   { id: "intelligence", label: "AI Intelligence", icon: ScanSearch },
+  { id: "overview", label: "Overview", icon: LayoutDashboard },
   { id: "evidence", label: "Evidence", icon: FileSearch },
   { id: "chat", label: "Chat", icon: MessageSquare },
   { id: "actions", label: "Actions", icon: SlidersHorizontal },

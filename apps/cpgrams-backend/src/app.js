@@ -49,6 +49,7 @@ app.use('/officer', require('./routes/officer'));
 app.use('/chat', require('./routes/chat'));
 app.use('/disclosure', require('./routes/disclosure'));
 app.use('/', require('./routes/aiAnalysis'));
+app.use('/', require('./routes/aiEvents.route'));
 
 const documentRoutes = require('./routes/documents');
 const statusRoutes = require('./routes/status');

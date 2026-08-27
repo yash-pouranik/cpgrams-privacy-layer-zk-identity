@@ -62,23 +62,28 @@ export function ConfirmModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => { if (!open && !loading) onClose(); }}>
-      <DialogContent className="max-w-md p-6 bg-white rounded-2xl shadow-xl border border-gray-100 animate-in fade-in zoom-in-95">
-        <DialogHeader className="gap-3">
+      <DialogContent className="max-w-md p-6 bg-white rounded-2xl shadow-xl border border-gray-100 animate-in fade-in zoom-in-95 flex flex-col max-h-[85vh]">
+        <DialogHeader className="gap-3 flex-shrink-0">
           <div className="flex items-center gap-3">
             {getIcon()}
             <div>
               <DialogTitle className="text-lg font-bold text-gray-900 tracking-tight">{title}</DialogTitle>
             </div>
           </div>
-          <DialogDescription
-            className="text-sm text-gray-600 leading-relaxed pt-1"
-            render={<div className="text-sm text-gray-600 leading-relaxed pt-1" />}
-          >
-            {description}
-          </DialogDescription>
         </DialogHeader>
 
-        <DialogFooter className="mt-6 flex flex-row items-center justify-end gap-2.5 border-t border-gray-100 pt-4 bg-transparent -mx-6 -mb-6 px-6 pb-6 rounded-b-2xl">
+        {/* Scrollable description container */}
+        <div className="overflow-y-auto pr-1 my-2 flex-1 min-h-0 text-sm text-gray-600 leading-relaxed">
+          {typeof description === "string" ? (
+            <DialogDescription className="text-sm text-gray-600 leading-relaxed pt-1">
+              {description}
+            </DialogDescription>
+          ) : (
+            description
+          )}
+        </div>
+
+        <DialogFooter className="flex flex-row items-center justify-end gap-2.5 border-t border-gray-100 pt-4 bg-transparent -mx-6 -mb-6 px-6 pb-6 rounded-b-2xl flex-shrink-0">
           <Button
             type="button"
             variant="outline"

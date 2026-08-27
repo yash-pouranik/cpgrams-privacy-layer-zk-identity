@@ -90,7 +90,7 @@ export default function OfficerCaseDetail() {
   const [showClarificationConfirm, setShowClarificationConfirm] = useState(false);
   
   const [officerToken, setOfficerToken] = useState<string>("");
-  const [activeTab, setActiveTab] = useState<CaseTab>("overview");
+  const [activeTab, setActiveTab] = useState<CaseTab>("intelligence");
 
   // Court-authorized identity disclosure (revealed after Disclosure Authority approves)
   const [disclosure, setDisclosure] = useState<{ revealedEmail: string; courtOrderRef: string; decidedAt: string } | null>(null);
