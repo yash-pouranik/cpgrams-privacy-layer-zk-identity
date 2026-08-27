@@ -1,17 +1,7 @@
 version: "3.8"
-services:
-  postgres:
-    image: postgres:16
-    restart: always
-    environment:
-      POSTGRES_USER: sso
-      POSTGRES_PASSWORD: ssopass
-      POSTGRES_DB: sso_db
-    ports:
-      - "5432:5432"
-    volumes:
-      - pgdata:/var/lib/postgresql/data
 
+services:
+  # ── Databases ───────────────────────────────────────────────────────────────
   mongo:
     image: mongo:7
     restart: always
@@ -38,6 +28,76 @@ services:
       - "3306:3306"
     volumes:
       - mysqldata:/var/lib/mysql
+
+  # ── Applications ─────────────────────────────────────────────────────────────
+  sso-server:
+    build:
+      context: .
+      dockerfile: apps/sso-server/Dockerfile
+    restart: always
+    ports:
+      - "4000:4000"
+    environment:
+      - PORT=4000
+      - DATABASE_URL=mysql://root:password@mysql:3306/sso_db
+      - SSO_PAIRWISE_SECRET=698d62f180dda25bb95e3152e2134b358df576916af6aca49734b54c0590b811
+      - SSO_ISSUER_URL=http://host.docker.internal:4000/oidc
+      - CPGRAMS_CALLBACK_URL=http://host.docker.internal:5000/auth/callback
+      - CPGRAMS_CLIENT_SECRET=431ba90225e063fd0ae02a7fcf7c557b2c6433a296cc95053ce20f8f9ae218e6
+      - COURT_ORDER_SECRET=dev-court-secret
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      - mysql
+
+  cpgrams-backend:
+    build:
+      context: .
+      dockerfile: apps/cpgrams-backend/Dockerfile
+    restart: always
+    ports:
+      - "5000:5000"
+    environment:
+      - PORT=5000
+      - MONGO_URI=mongodb://mongo:27017/cpgrams_db
+      - REDIS_URL=redis://redis:6379
+      - SESSION_SECRET=cpgrams-dev-session-secret-change-in-production
+      - FRONTEND_URL=http://host.docker.internal:3000
+      - SSO_ISSUER_URL=http://host.docker.internal:4000/oidc
+      - SSO_BASE_URL=http://host.docker.internal:4000
+      - CPGRAMS_CLIENT_SECRET=431ba90225e063fd0ae02a7fcf7c557b2c6433a296cc95053ce20f8f9ae218e6
+      - OFFICER_JWT_SECRET=dev-officer-jwt-secret-change-in-production
+      - COURT_ORDER_SECRET=dev-court-secret
+      - DISCLOSURE_AUTHORITY_TOKEN=authority-secret-change-me
+      - API_PUSH_KEYS=dev-push-key-12345
+      - AI_ENABLED=true
+      - MOCK_AI=true # Default to true for container runs unless api keys are passed
+      - OPENAI_MODEL_FAST=gpt-5.6-luna
+      - OPENAI_MODEL_REASONING=gpt-5.6-luna
+      - AI_TRIAGE_ENABLED=true
+      - AI_DOCUMENT_ENABLED=false
+      - AI_RAG_ENABLED=false
+      - AI_EVIDENCE_ENABLED=false
+      - AI_ASSIGNMENT_ENABLED=true
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      - mongo
+      - redis
+
+  frontend:
+    build:
+      context: .
+      dockerfile: apps/frontend/Dockerfile
+      args:
+        - NEXT_PUBLIC_SSO_URL=http://host.docker.internal:4000
+        - NEXT_PUBLIC_API_URL=http://host.docker.internal:5000
+        - NEXT_PUBLIC_PORTAL_NAME=CPGRAMS Privacy Layer (Docker)
+    restart: always
+    ports:
+      - "3000:3000"
+    depends_on:
+      - cpgrams-backend
 
 volumes:
   pgdata:

@@ -6,12 +6,14 @@ const { Provider, interactionPolicy: { base: policy } } = require('oidc-provider
 // at this scale. New services can still be recorded in the `services` Prisma table for
 // our own audit/reference — but the OIDC provider itself reads from this static list.
 
+const redirectUri = process.env.CPGRAMS_CALLBACK_URL || 'http://localhost:5000/auth/callback';
+
 const clients = [
   {
     client_id: 'cpgrams',
     client_secret: process.env.CPGRAMS_CLIENT_SECRET || 'dev-secret-change-me',
     redirect_uris: [
-      'http://localhost:5000/auth/callback', // cpgrams-backend callback route
+      redirectUri,
     ],
     grant_types: ['authorization_code'],
     response_types: ['code'],
@@ -71,6 +73,8 @@ const configuration = {
 
   renderError: async (ctx, out, error) => {
     console.warn('OIDC provider error:', out.error, out.error_description);
+    const callbackUrl = process.env.CPGRAMS_CALLBACK_URL || 'http://localhost:5000/auth/callback';
+    const backendOrigin = new URL(callbackUrl).origin;
     ctx.status = out.status || 400;
     ctx.type = 'html';
     ctx.body = `<!DOCTYPE html>
@@ -86,7 +90,7 @@ const configuration = {
   <div class="card bg-base-100 max-w-md w-full shadow-xl text-center p-6">
     <h2 class="text-2xl font-bold text-error">Authentication Session Expired</h2>
     <p class="text-base-content/70 my-4">Your login session has expired or was interrupted. Please start the login process again.</p>
-    <a href="http://localhost:5000/auth/login" class="btn btn-primary w-full">Start Login Again</a>
+    <a href="${backendOrigin}/auth/login" class="btn btn-primary w-full">Start Login Again</a>
   </div>
 </body>
 </html>`;
