@@ -28,11 +28,29 @@ export function Navbar() {
     setMobileMenuOpen(false);
   }, [pathname]);
 
-  const handleCitizenLogout = () => {
+  const handleCitizenLogout = async () => {
+    // Capture token before clearing it (used to decide whether to hit SSO logout)
+    const hadToken = sessionStorage.getItem("token");
+
+    // Clear frontend token first so UI updates immediately
     sessionStorage.removeItem("token");
     setHasCitizenToken(false);
     setLogoutType(null);
-    router.push("/");
+
+    // Destroy the CPGRAMS backend Express session cookie
+    const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+    await fetch(apiBase + "/auth/logout", {
+      method: "GET",
+      credentials: "include",
+    }).catch(() => {});
+
+    // Destroy the CivID SSO session so the next login on this shared device
+    // shows the Aadhaar screen again (instead of silently resuming the old user).
+    if (hadToken) {
+      window.location.href = "http://localhost:4000/oidc/logout";
+    } else {
+      router.push("/");
+    }
   };
 
   const handleOfficerLogout = () => {
