@@ -6,6 +6,17 @@
   <title>CivID - Login</title>
   <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
   <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <!-- Register custom colors as Tailwind v4 theme tokens so utilities like
+       text-warm-white/85, text-orange-bg, placeholder-warm-white/40 actually generate CSS -->
+  <style type="text/tailwindcss">
+    @theme {
+      --color-orange-bg: #F97316;
+      --color-warm-white: #FFF7ED;
+      --color-illustration-bg: #FAFAF8;
+      --color-sketch-primary: #2F2B27;
+      --color-sketch-secondary: #6B6560;
+    }
+  </style>
   <style>
     :root {
       --orange-bg: #F97316;
