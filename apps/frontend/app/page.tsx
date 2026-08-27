@@ -506,6 +506,76 @@ export default function LandingPage() {
       </section>
 
       {/* ═══════════════════════════════════════════════════════════════════ */}
+      {/* 6b. BILATERAL ACCOUNTABILITY (Phase 8)                             */}
+      {/* ═══════════════════════════════════════════════════════════════════ */}
+      <section id="accountability" className="py-20 px-4 sm:px-6 lg:px-8 bg-slate-900 text-white border-y border-slate-800">
+        <div className="max-w-6xl mx-auto space-y-10">
+          <div className="text-center space-y-3">
+            <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-widest text-orange-400 font-mono">
+              <Scale className="h-3.5 w-3.5" aria-hidden /> Bilateral Accountability
+            </span>
+            <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
+              The system doesn&apos;t only record complaints.
+              <br />
+              It records how institutions respond to them.
+            </h2>
+          </div>
+
+          <div className="grid gap-6 md:grid-cols-2">
+            {/* Pillar 1: Citizen Protection */}
+            <div className="rounded-xl border border-slate-700 bg-slate-800/60 p-7">
+              <div className="flex items-center gap-2.5 mb-5">
+                <Shield className="h-5 w-5 text-emerald-400" aria-hidden />
+                <h3 className="text-lg font-bold tracking-tight">Citizen Protection</h3>
+              </div>
+              <ul className="space-y-3 text-sm text-slate-300">
+                {[
+                  "100% identity shield — officers only ever see a pseudonymous Case ID",
+                  "Masked two-way chat — real identity never enters the grievance thread",
+                  "Zero fear of retaliation — identity sealed inside the CivID vault",
+                  "Court-order-only disclosure — every reveal judicially approved & audited",
+                ].map((item) => (
+                  <li key={item} className="flex items-start gap-2.5">
+                    <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" aria-hidden />
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* Pillar 2: Officer Accountability */}
+            <div className="rounded-xl border border-slate-700 bg-slate-800/60 p-7">
+              <div className="flex items-center gap-2.5 mb-5">
+                <UserCheck className="h-5 w-5 text-orange-400" aria-hidden />
+                <h3 className="text-lg font-bold tracking-tight">Officer Accountability</h3>
+              </div>
+              <ul className="space-y-3 text-sm text-slate-300">
+                {[
+                  "Public performance registry — every officer's record is open data",
+                  "14-day SLA monitoring — compliance measured against the CPGRAMS standard",
+                  "Transparent scorecards — resolution times, ratings, and performance tiers",
+                  "First appeal escalation — dissatisfied citizens trigger independent review",
+                ].map((item) => (
+                  <li key={item} className="flex items-start gap-2.5">
+                    <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-orange-400" aria-hidden />
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+
+          <div className="text-center">
+            <Button asChild className="bg-orange-600 hover:bg-orange-500 text-white font-semibold">
+              <Link href="/officers">
+                View the Public Officer Registry <ArrowRight className="ml-2 h-4 w-4" aria-hidden />
+              </Link>
+            </Button>
+          </div>
+        </div>
+      </section>
+
+      {/* ═══════════════════════════════════════════════════════════════════ */}
       {/* 7. FREQUENTLY ASKED QUESTIONS (Accordion)                         */}
       {/* ═══════════════════════════════════════════════════════════════════ */}
       <section className="py-20 px-4 sm:px-6 lg:px-8 max-w-4xl mx-auto w-full">
