@@ -55,4 +55,32 @@ test('Redressal Feedback API', async (t) => {
     assert.equal(res.body.rating, 5);
     assert.equal(res.body.comment, 'Pothole was repaired within 24 hours. Excellent work!');
   });
+
+  await Promise.all([Case.deleteMany({ caseId }), Feedback.deleteMany({ caseId })]);
+
+  await Case.create({
+    caseId,
+    pairwiseId,
+    category: 'Water Supply',
+    description: 'Pipeline leak resolved',
+    status: 'disposed', // official CPGRAMS closed status (not legacy 'resolved')
+    assignedOfficerId: officerId,
+    department: 'PWD',
+    feedbackSubmitted: false
+  });
+
+  await t.test('POST /grievance/:caseId/feedback accepts citizen rating on a disposed case', async () => {
+    const citizenToken = require('jsonwebtoken').sign(
+      { sub: pairwiseId, test: true },
+      process.env.TEST_AUTH_SECRET
+    );
+    const res = await request(app)
+      .post(`/grievance/${caseId}/feedback`)
+      .set('Authorization', `Bearer ${citizenToken}`)
+      .send({ rating: 4 })
+      .expect(201);
+
+    assert.equal(res.body.caseId, caseId);
+    assert.equal(res.body.rating, 4);
+  });
 });
