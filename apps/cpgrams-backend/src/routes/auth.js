@@ -10,11 +10,12 @@ let _client = null;
 async function getClient() {
   if (_client) return _client;
   const ssoUrl = process.env.SSO_ISSUER_URL || 'http://localhost:4000/oidc';
+  const callbackUrl = process.env.CPGRAMS_CALLBACK_URL || 'http://localhost:5000/auth/callback';
   const issuer = await Issuer.discover(ssoUrl);
   _client = new issuer.Client({
     client_id: 'cpgrams',
     client_secret: process.env.CPGRAMS_CLIENT_SECRET || 'dev-secret-change-me',
-    redirect_uris: ['http://localhost:5000/auth/callback'],
+    redirect_uris: [callbackUrl],
     response_types: ['code'],
     token_endpoint_auth_method: 'client_secret_basic',
   });
@@ -64,8 +65,9 @@ router.get('/callback', async (req, res, next) => {
     
     const codeVerifier = req.session.codeVerifier;
 
+    const callbackUrl = process.env.CPGRAMS_CALLBACK_URL || 'http://localhost:5000/auth/callback';
     const tokenSet = await client.callback(
-      'http://localhost:5000/auth/callback',
+      callbackUrl,
       params,
       { code_verifier: codeVerifier, state: req.session.state }
     );
