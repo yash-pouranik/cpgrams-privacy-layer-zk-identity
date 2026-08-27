@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { LogOut, Menu, X, ArrowRight, Shield, Scale, UserCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { AshokaEmblem } from "./AshokaEmblem";
+import { CivIDLogo } from "./CivIDLogo";
 import { ConfirmModal } from "./ConfirmModal";
 
 export function Navbar() {
@@ -81,7 +81,7 @@ export function Navbar() {
         <div className="flex items-center justify-between h-16">
           {/* Brand Logo & Name */}
           <Link href="/" className="flex items-center gap-3 group shrink-0">
-            <AshokaEmblem size={34} className="shrink-0" />
+            <CivIDLogo variant="dark" size={30} showWordmark={false} className="shrink-0" />
             <div className="flex items-center gap-2">
               <span className="font-extrabold text-slate-950 text-lg tracking-tight font-sans">
                 CPGRAMS
