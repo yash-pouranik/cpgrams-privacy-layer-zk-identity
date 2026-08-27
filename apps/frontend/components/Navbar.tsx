@@ -125,6 +125,15 @@ export function Navbar() {
             </Link>
 
             <Link
+              href="/officers"
+              className={`hover:text-slate-950 transition-colors ${
+                pathname === "/officers" ? "text-[#EA580C] font-bold" : ""
+              }`}
+            >
+              Officer Registry
+            </Link>
+
+            <Link
               href="/officer"
               className={`hover:text-slate-950 transition-colors ${
                 isOfficerRoute ? "text-[#EA580C] font-bold" : ""
@@ -255,6 +264,9 @@ export function Navbar() {
             </a>
             <Link href="/status" className="p-2 hover:bg-slate-50 rounded-sm">
               Track Status
+            </Link>
+            <Link href="/officers" className="p-2 hover:bg-slate-50 rounded-sm">
+              Officer Registry
             </Link>
             <Link href="/dashboard" className="p-2 hover:bg-slate-50 rounded-sm">
               Citizen Portal
