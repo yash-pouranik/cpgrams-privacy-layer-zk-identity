@@ -20,7 +20,7 @@ import {
   ArrowUpRight 
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { AshokaEmblem } from "@/components/AshokaEmblem";
+import { CivIDLogo } from "@/components/CivIDLogo";
 import { QuickStatusWidget } from "@/components/QuickStatusWidget";
 import { IdentityVaultSimulator } from "@/components/IdentityVaultSimulator";
 import { BentoSecurityGrid } from "@/components/BentoSecurityGrid";
@@ -551,7 +551,7 @@ export default function LandingPage() {
           {/* Top Brand & Helpline Row */}
           <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 pb-8 border-b border-slate-800">
             <div className="flex items-center gap-3.5">
-              <AshokaEmblem size={36} />
+              <CivIDLogo variant="white" size={32} showWordmark={false} />
               <div>
                 <p className="font-extrabold text-white text-base tracking-tight">CPGRAMS &bull; CivID Privacy Layer</p>
                 <p className="text-[11px] text-slate-400">
