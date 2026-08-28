@@ -47,7 +47,8 @@ export function Navbar() {
     // Destroy the CivID SSO session so the next login on this shared device
     // shows the Aadhaar screen again (instead of silently resuming the old user).
     if (hadToken) {
-      window.location.href = "http://localhost:4000/oidc/logout";
+      const ssoBase = process.env.NEXT_PUBLIC_SSO_URL || "http://localhost:4000";
+      window.location.href = `${ssoBase}/oidc/logout`;
     } else {
       router.push("/");
     }

@@ -67,10 +67,23 @@ export default function DashboardPage() {
     fetchCases();
   }, [router]);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    const hadToken = sessionStorage.getItem("token");
     sessionStorage.removeItem("token");
     setShowLogoutConfirm(false);
-    router.push("/");
+
+    const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+    await fetch(apiBase + "/auth/logout", {
+      method: "GET",
+      credentials: "include",
+    }).catch(() => {});
+
+    if (hadToken) {
+      const ssoBase = process.env.NEXT_PUBLIC_SSO_URL || "http://localhost:4000";
+      window.location.href = `${ssoBase}/oidc/logout`;
+    } else {
+      router.push("/");
+    }
   };
 
   const filteredCases = useMemo(() => {
