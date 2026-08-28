@@ -151,8 +151,9 @@ async function processGrievanceIntelligence(job) {
         results.triage = triageResult.output;
         await AiCaseAnalysis.findOneAndUpdate({ caseId }, { $set: { triage: triageResult.output } });
 
-        // Update Case model with AI Triage results (Category & Department) and sync local state
-        if (triageResult.output && triageResult.output.classification) {
+        // Update Case model with AI Triage results (Category & Department) only if submitted as unclassified
+        if (triageResult.output && triageResult.output.classification &&
+            (caseData.category === 'Unclassified (AI Triage Pending)' || caseData.department === 'Triage Pending')) {
           const { dept, category } = triageResult.output.classification;
           await Case.updateOne(
             { caseId },
