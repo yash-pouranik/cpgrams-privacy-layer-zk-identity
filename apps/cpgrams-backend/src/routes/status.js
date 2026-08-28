@@ -84,7 +84,7 @@ router.get('/status/:caseId/history', async (req, res) => {
     const logs = await AuditLog.find({
       targetCaseId: caseId,
       eventType: { $in: ['status_updated', 'grievance_filed', 'reminder_sent', 'clarification_requested', 'feedback_submitted'] }
-    }).sort({ createdAt: 1 });
+    }).sort({ timestamp: 1 });
 
     const timeline = logs.map(log => {
       let title = log.eventType.replace(/_/g, ' ');
@@ -99,7 +99,7 @@ router.get('/status/:caseId/history', async (req, res) => {
         eventType: log.eventType,
         title,
         status: log.metadata?.newStatus || log.metadata?.status || log.eventType || 'logged',
-        createdAt: log.createdAt,
+        createdAt: log.timestamp || log.createdAt,
         notes: log.metadata?.notes || log.metadata?.justification || ''
       };
     });
