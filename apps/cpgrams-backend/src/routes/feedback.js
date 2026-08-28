@@ -50,7 +50,7 @@ router.post('/grievance/:caseId/feedback', verifyToken, async (req, res) => {
     if (!grievance) return res.status(404).json({ error: 'Case not found.' });
     if (grievance.pairwiseId !== pairwiseId) return res.status(403).json({ error: 'Access denied.' });
 
-    if (grievance.status !== 'resolved') {
+    if (grievance.status !== 'resolved' && grievance.status !== 'disposed') {
       return res.status(400).json({ error: 'Case must be resolved to submit feedback.' });
     }
     if (grievance.feedbackSubmitted) {

@@ -105,6 +105,53 @@ router.get('/master/officers', async (req, res) => {
 });
 
 /**
+ * GET /master/officers/public-registry
+ * PUBLIC — Officer Accountability Registry (Phase 8).
+ * All officers with live scorecard metrics. Must be declared BEFORE
+ * /master/officers/:officerId so "public-registry" is not captured as an ID.
+ * Excludes passwordHash / _id / __v and all citizen PII.
+ */
+router.get('/master/officers/public-registry', async (req, res) => {
+  try {
+    const { department, sort } = req.query;
+    const query = {};
+    if (department) query.department = department;
+
+    const officers = await Officer.find(query).select('-_id -__v -passwordHash').lean();
+
+    const { computeScorecard } = require('../services/scorecard');
+    const registry = await Promise.all(
+      officers.map(async (o) => {
+        const metrics = await computeScorecard(o.officerId);
+        return {
+          officerId: o.officerId,
+          name: o.name,
+          department: o.department,
+          level: o.level,
+          isAvailable: o.isAvailable,
+          expertise: o.expertise,
+          jurisdictions: o.jurisdictions,
+          metrics,
+        };
+      })
+    );
+
+    const sorters = {
+      sla: (a, b) => b.metrics.slaComplianceRate - a.metrics.slaComplianceRate,
+      rating: (a, b) => b.metrics.citizenSatisfaction - a.metrics.citizenSatisfaction,
+      volume: (a, b) => b.metrics.totalCasesHandled - a.metrics.totalCasesHandled,
+      resolution: (a, b) => a.metrics.averageResolutionDays - b.metrics.averageResolutionDays,
+    };
+    registry.sort(sorters[sort] || sorters.sla);
+
+    return res.json({ count: registry.length, registry });
+  } catch (err) {
+    console.error('Public officer registry error:', err);
+    return res.status(500).json({ error: 'Internal server error.' });
+  }
+});
+
+/**
  * GET /master/officers/:officerId
  */
 router.get('/master/officers/:officerId', async (req, res) => {

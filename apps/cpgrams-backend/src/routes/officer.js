@@ -7,6 +7,7 @@ const Message = require('../models/Message');
 const DisclosureRequest = require('../models/DisclosureRequest');
 const AuditLog = require('../models/AuditLog');
 const Evidence = require('../models/Evidence');
+const { computeScorecard } = require('../services/scorecard');
 const {
   verifyPassword,
   signOfficerToken,
@@ -46,6 +47,27 @@ router.post('/login', async (req, res) => {
     });
   } catch (err) {
     console.error('Officer login error:', err);
+    return res.status(500).json({ error: 'Internal server error.' });
+  }
+});
+
+/**
+ * GET /officer/:officerId/scorecard
+ * PUBLIC — Officer Accountability Scorecard (Phase 8).
+ * Aggregates live Case + Feedback data. No PII, no citizen data.
+ */
+router.get('/:officerId/scorecard', async (req, res) => {
+  try {
+    const officerId = req.params.officerId.trim().toUpperCase();
+    const officer = await Officer.findOne({ officerId }).select('officerId name department level -_id').lean();
+    if (!officer) {
+      return res.status(404).json({ error: 'Officer not found.' });
+    }
+
+    const metrics = await computeScorecard(officerId);
+    return res.json({ officer, metrics });
+  } catch (err) {
+    console.error('Officer scorecard error:', err);
     return res.status(500).json({ error: 'Internal server error.' });
   }
 });
