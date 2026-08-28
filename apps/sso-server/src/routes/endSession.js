@@ -37,7 +37,16 @@ module.exports = function endSessionRoutes(provider) {
     res.clearCookie(sessionCookieName, { path: '/' });
     res.clearCookie(sessionSigCookieName, { path: '/' });
 
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const referer = req.headers.referer || req.headers.referrer;
+    let fallbackFrontend = 'http://localhost:3000';
+    if (referer) {
+      try {
+        fallbackFrontend = new URL(referer).origin;
+      } catch (err) {
+        // ignore invalid URL
+      }
+    }
+    const frontendUrl = process.env.FRONTEND_URL || fallbackFrontend;
     res.redirect(frontendUrl + '/?logged_out=1');
   });
 

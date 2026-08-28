@@ -13,6 +13,8 @@ const crypto = require('crypto');
  */
 module.exports = function interactionRoutes(provider) {
   const router = Router();
+  const callbackUrl = process.env.CPGRAMS_CALLBACK_URL || 'http://localhost:5000/auth/callback';
+  const backendOrigin = new URL(callbackUrl).origin;
 
   // ---- GET /interaction/:uid — show login screen ----
   router.get('/:uid', async (req, res, next) => {
@@ -59,6 +61,7 @@ module.exports = function interactionRoutes(provider) {
       if (err.name === 'SessionNotFound' || (err.message && err.message.includes('SessionNotFound'))) {
         return res.status(400).render('error', {
           message: 'Your authentication session expired or server restarted. Please try logging in again.',
+          backendOrigin,
         });
       }
       next(err);
@@ -205,6 +208,7 @@ module.exports = function interactionRoutes(provider) {
       if (err.name === 'SessionNotFound' || (err.message && err.message.includes('SessionNotFound'))) {
         return res.status(400).render('error', {
           message: 'Your authentication session expired or server restarted. Please try logging in again.',
+          backendOrigin,
         });
       }
       next(err);
