@@ -80,7 +80,7 @@ export default function CitizenCaseDetail() {
   const [feedbackComment, setFeedbackComment] = useState("");
   const [submittingFeedback, setSubmittingFeedback] = useState(false);
   const [showFeedbackConfirm, setShowFeedbackConfirm] = useState(false);
-  const [activeTab, setActiveTab] = useState<CaseTab>("overview");
+  const [activeTab, setActiveTab] = useState<CaseTab>("intelligence");
 
   // First Appeal (Stage 9 & 10)
   const [appealReason, setAppealReason] = useState("");
