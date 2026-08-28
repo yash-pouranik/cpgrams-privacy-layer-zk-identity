@@ -1025,7 +1025,7 @@ export default function NewGrievancePage() {
                   </Button>
                   <Button
                     type="submit"
-                    disabled={loading || description.length < 50 || !category || !captchaAnswer}
+                    disabled={loading || description.length < 50 || (!aiAutoRoute && !category) || !captchaAnswer}
                     className="bg-[#5E6AD2] hover:bg-[#4F5BC0] text-white text-xs px-8 h-10 shadow-xs"
                   >
                     Submit Privacy-Protected Grievance
