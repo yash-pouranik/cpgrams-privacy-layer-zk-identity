@@ -636,11 +636,13 @@ export default function NewGrievancePage() {
                       </p>
                     </div>
                   ) : (
-                    <div className="p-4 bg-emerald-50/50 border border-emerald-100 rounded-xl flex items-start gap-3 text-emerald-950 text-xs">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                    <div className="p-4 bg-indigo-50/40 border border-indigo-100 rounded-xl flex items-start gap-3 text-indigo-950 text-xs">
+                      <Info className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5" />
                       <div>
-                        <span className="font-bold block">AI Triage Active</span>
-                        <span className="text-gray-600 block mt-0.5">Ministry and department selection is automated. You can skip this step.</span>
+                        <span className="font-bold block text-indigo-950">No Selection Needed!</span>
+                        <span className="text-indigo-800 block mt-0.5">
+                          Just write your detailed complaint description and a little bit of location info, we will take care of the rest!
+                        </span>
                       </div>
                     </div>
                   )}
@@ -678,11 +680,13 @@ export default function NewGrievancePage() {
                     </Select>
                   </div>
                 ) : (
-                  <div className="p-4 bg-emerald-50/50 border border-emerald-100 rounded-xl flex items-start gap-3 text-emerald-950 text-xs">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                  <div className="p-4 bg-indigo-50/40 border border-indigo-100 rounded-xl flex items-start gap-3 text-indigo-950 text-xs">
+                    <Info className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5" />
                     <div>
-                      <span className="font-bold block">AI Classification Active</span>
-                      <span className="text-gray-600 block mt-0.5">Drishti AI will automatically classify the category and sub-category from your description below.</span>
+                      <span className="font-bold block text-indigo-950">Auto-Classification Active</span>
+                      <span className="text-indigo-800 block mt-0.5">
+                        No category selection required. Just write your detailed complaint and a little bit of location info below, we will handle the rest!
+                      </span>
                     </div>
                   </div>
                 )}
