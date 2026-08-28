@@ -838,8 +838,12 @@ export default function NewGrievancePage() {
                     type="button"
                     size="sm"
                     onClick={() => {
-                      if (!category || description.length < 50) {
-                        toast({ title: "Incomplete", description: "Please select category and provide at least 50 characters of description.", variant: "destructive" });
+                      if (description.length < 50) {
+                        toast({ title: "Details Incomplete", description: "Please provide at least 50 characters of description.", variant: "destructive" });
+                        return;
+                      }
+                      if (!aiAutoRoute && !category) {
+                        toast({ title: "Category Required", description: "Please select a grievance category.", variant: "destructive" });
                         return;
                       }
                       setCurrentStep(4);
