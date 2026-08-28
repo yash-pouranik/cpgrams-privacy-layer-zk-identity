@@ -72,7 +72,7 @@ async function verifyToken(req, res, next) {
     }
 
     const pem = crypto.createPublicKey({ key: jwk, format: 'jwk' }).export({ type: 'spki', format: 'pem' });
-    const expectedIssuer = process.env.SSO_ISSUER_URL || 'http://localhost:4000/oidc';
+    const expectedIssuer = process.env.SSO_BASE_URL || (process.env.SSO_ISSUER_URL || 'http://localhost:4000/oidc').replace(/\/oidc$/, '');
     
     const decoded = jwt.verify(token, pem, { algorithms: ['RS256'], issuer: expectedIssuer });
 
