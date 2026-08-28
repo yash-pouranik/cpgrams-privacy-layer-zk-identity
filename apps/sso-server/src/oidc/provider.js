@@ -56,12 +56,12 @@ const configuration = {
     short: {
       path: '/',
       sameSite: 'lax',
-      secure: false,
+      secure: process.env.SSO_ISSUER_URL ? process.env.SSO_ISSUER_URL.startsWith('https') : false,
     },
     long: {
       path: '/',
       sameSite: 'lax',
-      secure: false,
+      secure: process.env.SSO_ISSUER_URL ? process.env.SSO_ISSUER_URL.startsWith('https') : false,
     },
   },
 
@@ -107,6 +107,7 @@ const configuration = {
 
 function createProvider() {
   const provider = new Provider(process.env.SSO_ISSUER_URL || 'http://localhost:4000', configuration);
+  provider.proxy = true;
   return provider;
 }
 

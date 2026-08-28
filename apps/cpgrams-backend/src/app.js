@@ -11,6 +11,7 @@ const { UPLOADS_DIR } = require('./middleware/upload');
 const { AI_ENABLED } = require('./config/aiConfig');
 
 const app = express();
+app.set('trust proxy', true);
 const PORT = process.env.PORT || 5000;
 
 // ---- Connect to MongoDB ----
@@ -37,7 +38,7 @@ app.use(session({
   resave: false,
   saveUninitialized: false,
   cookie: {
-    secure: false, // true in production with HTTPS
+    secure: process.env.CPGRAMS_CALLBACK_URL ? process.env.CPGRAMS_CALLBACK_URL.startsWith('https') : false,
     maxAge: 24 * 60 * 60 * 1000, // 24 hours
   },
 }));

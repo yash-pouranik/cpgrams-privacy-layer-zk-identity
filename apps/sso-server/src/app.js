@@ -7,6 +7,7 @@ const path = require('path');
 const { createProvider } = require('./oidc/provider');
 
 const app = express();
+app.set('trust proxy', true);
 const PORT = process.env.PORT || 4000;
 
 // ---- View engine (CivID login/OTP pages) ----
