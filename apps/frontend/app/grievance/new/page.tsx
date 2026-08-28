@@ -74,6 +74,7 @@ export default function NewGrievancePage() {
   const [orgType, setOrgType] = useState<"central" | "state">("central");
   const [departments, setDepartments] = useState<Department[]>([]);
   const [selectedDept, setSelectedDept] = useState<string>("NOT_LISTED");
+  const [aiAutoRoute, setAiAutoRoute] = useState(true);
 
   // Step 3: Grievance Details
   const [categories, setCategories] = useState<Category[]>([]);
@@ -305,8 +306,13 @@ export default function NewGrievancePage() {
       setCurrentStep(1);
       return;
     }
-    if (!category || description.length < 50) {
-      toast({ title: "Details Incomplete", description: "Please select category and provide at least 50 characters of description.", variant: "destructive" });
+    if (description.length < 50) {
+      toast({ title: "Details Incomplete", description: "Please provide at least 50 characters of description.", variant: "destructive" });
+      setCurrentStep(3);
+      return;
+    }
+    if (!aiAutoRoute && !category) {
+      toast({ title: "Category Required", description: "Please select a grievance category in Step 3.", variant: "destructive" });
       setCurrentStep(3);
       return;
     }
@@ -327,12 +333,16 @@ export default function NewGrievancePage() {
 
     try {
       const formData = new FormData();
-      formData.append("category", category);
+      if (aiAutoRoute) {
+        formData.append("category", "Unclassified (AI Triage Pending)");
+      } else {
+        formData.append("category", category);
+        if (selectedDept && selectedDept !== "NOT_LISTED") {
+          formData.append("department", selectedDept);
+        }
+      }
       formData.append("description", description);
       formData.append("orgType", orgType);
-      if (selectedDept && selectedDept !== "NOT_LISTED") {
-        formData.append("department", selectedDept);
-      }
       if (hasPriorRef && priorRefNumber) {
         formData.append("priorRefNumber", priorRefNumber);
         formData.append("priorRefDate", priorRefDate);
@@ -576,27 +586,64 @@ export default function NewGrievancePage() {
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center">
-                    <label className="text-xs font-bold text-gray-900 uppercase tracking-wider">Ministry / Department</label>
-                    <span className="text-[11px] text-gray-500">15 Ministries Seeded</span>
+                <div className="space-y-4">
+                  <div className="p-4 bg-indigo-50/50 border border-indigo-100 rounded-2xl flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-indigo-500 rounded-lg text-white shrink-0">
+                        <Zap className="w-5 h-5 animate-pulse" />
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-bold text-indigo-950">Intelligent AI Auto-Routing</h3>
+                        <p className="text-[11px] text-indigo-700">Drishti AI classifies department, category and assigns the officer automatically from your description.</p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setAiAutoRoute(!aiAutoRoute)}
+                      className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                        aiAutoRoute ? 'bg-indigo-600' : 'bg-gray-200'
+                      }`}
+                    >
+                      <span
+                        className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
+                          aiAutoRoute ? 'translate-x-5' : 'translate-x-0'
+                        }`}
+                      />
+                    </button>
                   </div>
-                  <Select value={selectedDept} onValueChange={(val) => setSelectedDept(val || "NOT_LISTED")}>
-                    <SelectTrigger className="w-full bg-[#F9FAFB] border-[#E5E7EB] text-xs">
-                      <SelectValue placeholder="Select Ministry or Department" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="NOT_LISTED">NOT KNOWN / NOT LISTED (AI IGMS Auto-Route)</SelectItem>
-                      {departments.map((d) => (
-                        <SelectItem key={d.deptCode} value={d.deptCode}>
-                          {d.name} ({d.deptCode})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <p className="text-[11px] text-gray-500">
-                    If you do not know the exact ministry, select <em>NOT KNOWN / NOT LISTED</em> and the Intelligent Grievance Management System (IGMS) will automatically route it.
-                  </p>
+
+                  {!aiAutoRoute ? (
+                    <div className="space-y-2 border-l-2 border-slate-100 pl-4 animate-in slide-in-from-left-2 duration-200">
+                      <div className="flex justify-between items-center">
+                        <label className="text-xs font-bold text-gray-900 uppercase tracking-wider">Ministry / Department</label>
+                        <span className="text-[11px] text-gray-500">15 Ministries Seeded</span>
+                      </div>
+                      <Select value={selectedDept} onValueChange={(val) => setSelectedDept(val || "NOT_LISTED")}>
+                        <SelectTrigger className="w-full bg-[#F9FAFB] border-[#E5E7EB] text-xs">
+                          <SelectValue placeholder="Select Ministry or Department" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="NOT_LISTED">NOT KNOWN / NOT LISTED (AI IGMS Auto-Route)</SelectItem>
+                          {departments.map((d) => (
+                            <SelectItem key={d.deptCode} value={d.deptCode}>
+                              {d.name} ({d.deptCode})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <p className="text-[11px] text-gray-500">
+                        If you do not know the exact ministry, select <em>NOT KNOWN / NOT LISTED</em> and the Intelligent Grievance Management System (IGMS) will automatically route it.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="p-4 bg-emerald-50/50 border border-emerald-100 rounded-xl flex items-start gap-3 text-emerald-950 text-xs">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                      <div>
+                        <span className="font-bold block">AI Triage Active</span>
+                        <span className="text-gray-600 block mt-0.5">Ministry and department selection is automated. You can skip this step.</span>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <div className="pt-2 flex justify-between">
@@ -614,21 +661,31 @@ export default function NewGrievancePage() {
             {/* STEP 3: GRIEVANCE DETAILS */}
             {currentStep === 3 && (
               <div className="space-y-5 animate-in fade-in">
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-gray-900 uppercase tracking-wider">Grievance Category / Sub-Category</label>
-                  <Select value={category} onValueChange={(val) => setCategory(val || "")}>
-                    <SelectTrigger className="w-full bg-[#F9FAFB] border-[#E5E7EB] text-xs">
-                      <SelectValue placeholder="Select Category" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {categories.map((cat, idx) => (
-                        <SelectItem key={idx} value={cat.name}>
-                          {cat.name} {cat.parentCode ? `(${cat.parentCode})` : ""}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+                {!aiAutoRoute ? (
+                  <div className="space-y-2 border-l-2 border-slate-100 pl-4 animate-in slide-in-from-left-2 duration-200">
+                    <label className="text-xs font-bold text-gray-900 uppercase tracking-wider">Grievance Category / Sub-Category</label>
+                    <Select value={category} onValueChange={(val) => setCategory(val || "")}>
+                      <SelectTrigger className="w-full bg-[#F9FAFB] border-[#E5E7EB] text-xs">
+                        <SelectValue placeholder="Select Category" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {categories.map((cat, idx) => (
+                          <SelectItem key={idx} value={cat.name}>
+                            {cat.name} {cat.parentCode ? `(${cat.parentCode})` : ""}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                ) : (
+                  <div className="p-4 bg-emerald-50/50 border border-emerald-100 rounded-xl flex items-start gap-3 text-emerald-950 text-xs">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                    <div>
+                      <span className="font-bold block">AI Classification Active</span>
+                      <span className="text-gray-600 block mt-0.5">Drishti AI will automatically classify the category and sub-category from your description below.</span>
+                    </div>
+                  </div>
+                )}
 
                 {/* Prior Reference Details (Optional) */}
                 <div className="p-3.5 bg-gray-50 border border-gray-200 rounded-xl space-y-3">

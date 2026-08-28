@@ -150,6 +150,24 @@ async function processGrievanceIntelligence(job) {
 
         results.triage = triageResult.output;
         await AiCaseAnalysis.findOneAndUpdate({ caseId }, { $set: { triage: triageResult.output } });
+
+        // Update Case model with AI Triage results (Category & Department) and sync local state
+        if (triageResult.output && triageResult.output.classification) {
+          const { dept, category } = triageResult.output.classification;
+          await Case.updateOne(
+            { caseId },
+            {
+              $set: {
+                category: category || 'General',
+                department: dept || 'General Administration',
+              },
+            }
+          );
+          caseData.category = category || 'General';
+          caseData.department = dept || 'General Administration';
+          console.log(`[Worker] Case updated with AI Triage: category="${category}", dept="${dept}"`);
+        }
+
         await logAgentRun(caseId, 'triage', 'completed', { input, ...triageResult, latencyMs });
         console.log(`[Worker] Agent 1 (Triage) ✓ ${latencyMs}ms`);
       } catch (err) {
