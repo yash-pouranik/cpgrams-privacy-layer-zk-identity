@@ -743,12 +743,15 @@ export default function NewGrievancePage() {
                   <Textarea
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
-                    placeholder="Describe your grievance in full factual detail. State location, affected persons, dates, and administrative inaction..."
+                    placeholder="Describe your grievance here (English, Hindi, or Hinglish). E.g., 'MG Road indore hospital ke pass road par bahut bade potholes hain, vehicles damage ho rahe hain...'"
                     className="min-h-[140px] bg-[#F9FAFB] border-[#E5E7EB] text-xs resize-y leading-relaxed"
                   />
-                  <p className="text-[11px] text-gray-400 flex items-center gap-1">
-                    <Info className="w-3 h-3" /> Draft automatically saved to browser storage.
-                  </p>
+                  <div className="flex justify-between items-center text-[11px] text-gray-400 flex-wrap gap-2">
+                    <span className="flex items-center gap-1 font-medium text-indigo-600 bg-indigo-50/50 border border-indigo-100/55 px-2 py-0.5 rounded-md">
+                      <Info className="w-3 h-3 shrink-0" /> You can write in English, Hindi (हिंदी), or Hinglish. Describe the location clearly.
+                    </span>
+                    <span>Draft automatically saved to browser storage.</span>
+                  </div>
 
                   {/* Duplicate Detection & Similar Issues Suggestions */}
                   {suggestionsLoading && (
