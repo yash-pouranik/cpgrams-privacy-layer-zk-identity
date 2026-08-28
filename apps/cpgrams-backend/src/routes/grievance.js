@@ -62,7 +62,7 @@ router.post('/', verifyToken, upload.array('files', 5), async (req, res) => {
     const hash = await bcrypt.hash(password, 10);
 
     // Build evidence URL list: uploaded files first, then external URLs
-    const baseUrl = `http://localhost:${process.env.PORT || 5000}`;
+    const baseUrl = `${req.protocol}://${req.get('host')}`;
     const uploadedUrls = (req.files || []).map(
       (f) => `${baseUrl}/uploads/${f.filename}`
     );
