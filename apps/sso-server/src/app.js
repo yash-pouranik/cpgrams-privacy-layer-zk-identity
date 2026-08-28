@@ -37,6 +37,13 @@ app.use('/oidc', require('./routes/endSession')(provider));
 // ---- Mount oidc-provider (handles /oidc/... routes) ----
 app.use('/oidc', provider.callback());
 
+// ---- Public Landing Page ----
+app.get('/', (req, res) => {
+  const callbackUrl = process.env.CPGRAMS_CALLBACK_URL || 'http://localhost:5000/auth/callback';
+  const frontendUrl = process.env.FRONTEND_URL || new URL(callbackUrl).origin.replace('api.', '');
+  res.render('landing', { frontendUrl });
+});
+
 // ---- Health check ----
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', service: 'CivID SSO', port: PORT });
